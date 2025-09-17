@@ -179,7 +179,6 @@ def av_tfidf_weight():
 
 
 def feature_heatmap(top_k=15):
-    # pick only numeric TF-IDF/token features + label
     use_cols = [
         c
         for c in df.select_dtypes(include=[np.number]).columns
@@ -190,21 +189,12 @@ def feature_heatmap(top_k=15):
         return
 
     use_cols = ["label_encoded"] + [c for c in use_cols if c != "label_encoded"]
-
-    # correlation matrix
     corr = df[use_cols].corr(numeric_only=True)
-
-    # make sure we pull a Series, not a DataFrame
-    target_corr = corr.loc[use_cols[1:], "label_encoded"]
-
-    # top_k by absolute correlation
+    target_corr = corr.loc[use_cols[1:], "label_encoded"] #in series
     top_features = target_corr.abs().nlargest(min(top_k, len(target_corr))).index
     top_features = top_features.sort_values()
-
-    # recompute subset (label + top features)
     cols = ["label_encoded"] + list(top_features)
     corr_subset = df[cols].corr(numeric_only=True)
-
     plt.figure(figsize=(10, 8))
     sns.heatmap(
         corr_subset,
@@ -224,40 +214,26 @@ def feature_heatmap(top_k=15):
 
 
 def label_only_corr_heatmap(df, top_k=15, label_col="label_encoded"):
-    # numeric features excluding obvious meta
-    meta = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
+    excl = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
     num_cols = df.select_dtypes(include=[np.number]).columns
-    feat_cols = [c for c in num_cols if c not in meta and df[c].var() > 0]
-
+    feat_cols = [c for c in num_cols if c not in excl and df[c].var() > 0]
     if label_col not in df.columns or not feat_cols:
         print("Missing label or no usable numeric features.")
         return
-
-    # correlations with label → Series
     r = df[feat_cols].corrwith(df[label_col]).dropna()
-
-    # pick strongest by absolute value
     top_feats = r.abs().nlargest(min(top_k, len(r))).index.tolist()
-
-    # 1-row matrix: label vs top features
     vals = r[top_feats].values[np.newaxis, :]  # shape (1, K)
     vmax = np.max(np.abs(vals))
     vmin = -vmax
-
     plt.figure(figsize=(1.0 + 0.55 * len(top_feats), 3.2))
     im = plt.imshow(vals, aspect="auto", vmin=vmin, vmax=vmax, cmap="coolwarm")
     plt.colorbar(im, fraction=0.046, pad=0.04)
-
-    # ticks / labels
     plt.xticks(range(len(top_feats)), top_feats, rotation=45, ha="right", fontsize=10)
     plt.yticks([0], [label_col], fontsize=11)
-
-    # annotate values
     for j, v in enumerate(vals[0]):
         plt.text(
             j, 0, f"{v:+.2f}", ha="center", va="center", fontsize=10, fontweight="bold"
         )
-
     plt.title(f"Correlation with {label_col} (Top {len(top_feats)})", fontsize=13)
     plt.tight_layout()
     plt.show()
@@ -267,16 +243,13 @@ def label_only_corr_heatmap(df, top_k=15, label_col="label_encoded"):
 
 
 def label_corr_bars(df, top_k=10, label_col="label_encoded"):
-    meta = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
+    excl = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
     num_cols = df.select_dtypes(include=[np.number]).columns
-    feat_cols = [c for c in num_cols if c not in meta and df[c].var() > 0]
-
+    feat_cols = [c for c in num_cols if c not in excl and df[c].var() > 0]
     if label_col not in df.columns or not feat_cols:
         print("Missing label or no usable numeric features.")
         return
-
     r = df[feat_cols].corrwith(df[label_col]).dropna()
-
     # top positive / negative
     pos = r[r > 0].sort_values(ascending=False).head(top_k)
     neg = r[r < 0].sort_values(ascending=True).head(top_k)  # most negative
