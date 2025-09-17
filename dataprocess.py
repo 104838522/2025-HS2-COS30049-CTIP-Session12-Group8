@@ -372,7 +372,7 @@ all_tokens = pd.concat([df_juliet["tokens_str"], df_basic["tokens_str"]])
 vectorizer = TfidfVectorizer(min_df=5)  # ignore tokens that appear in less than 5 documents
 vectorizer.fit(all_tokens)
 
-# 4) Juliet 변환
+# 4) Juliet transform
 X_juliet = vectorizer.transform(df_juliet["tokens_str"])
 df_juliet_final = pd.concat(
     [df_juliet.reset_index(drop=True).drop(columns=["tokens_str"]),
@@ -380,7 +380,7 @@ df_juliet_final = pd.concat(
     axis=1
 )
 
-# 5) Basic 변환
+# 5) Basic transform
 X_basic = vectorizer.transform(df_basic["tokens_str"])
 df_basic_final = pd.concat(
     [df_basic.reset_index(drop=True).drop(columns=["tokens_str"]),
