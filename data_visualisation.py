@@ -78,6 +78,35 @@ print("\nnumber of CWEs:")
 print(unique_cwes.size)
 
 
+# confirming dataset quality
+
+
+def missing_unknown_plot(df):
+    # count missing values (NaN) per column
+    missing_counts = df.isna().sum()
+    # count unknown string vals
+    unknown_counts = (
+        df.astype(str).apply(lambda col: col.str.lower().eq("unknown").sum())
+        if not df.empty
+        else pd.Series(0, index=df.columns)
+    )
+
+    # combine into one Series
+    total_issues = missing_counts + unknown_counts
+    total_issues = total_issues[total_issues > 0].sort_values(ascending=False)
+    if total_issues.empty:
+        print("No missing or 'Unknown' values found. Dataset looks clean!")
+        return
+    plt.figure(figsize=(12, 6))
+    total_issues.plot(kind="bar", color="firebrick")
+    plt.title("Missing/Unknown Values per Column")
+    plt.xlabel("Column")
+    plt.ylabel("Count")
+    plt.xticks(rotation=45, ha="right")
+    plt.tight_layout()
+    plt.show()
+
+
 # safe vs. vulnerable records
 
 
@@ -113,16 +142,18 @@ def c_vs_cplus():
 # bar chart for the 15 most common CWEs
 
 
-def top_cwes():
-    top_n = 15
-    cwe_counts = df["vulnerability_cwe_id"].value_counts().head(top_n)
-    fig, ax = plt.subplots(figsize=(12, 6))
-    cwe_counts.plot(kind="bar", ax=ax)
-    ax.set_title(f"Top {top_n} CWE Types in Dataset")
-    ax.set_xlabel("CWE ID")
-    ax.set_ylabel("Count")
-    # annotate vs total dataset so % reflects overall share
-    annotate_counts_and_pct(ax, totals=len(df))
+def top_cwes(top_n=15):
+    vc = df["vulnerability_cwe_id"].value_counts(dropna=False)
+    plot = pd.concat([vc.head(top_n), pd.Series({"Other": vc.iloc[top_n:].sum()})])
+    pct = (plot / len(df) * 100).sort_values()
+
+    plt.figure(figsize=(9, 0.45 * len(pct) + 1.2))
+    ax = pct.plot.barh()
+    for p, v in zip(ax.patches, pct.values):
+        ax.text(v, p.get_y() + p.get_height() / 2, f" {v:.1f}%", va="center")
+    ax.set_xlabel("% of dataset")
+    ax.set_ylabel("")
+    ax.set_title(f"Top {top_n} CWE types (+ Other)")
     plt.tight_layout()
     plt.show()
 
@@ -190,7 +221,7 @@ def feature_heatmap(top_k=15):
 
     use_cols = ["label_encoded"] + [c for c in use_cols if c != "label_encoded"]
     corr = df[use_cols].corr(numeric_only=True)
-    target_corr = corr.loc[use_cols[1:], "label_encoded"] #in series
+    target_corr = corr.loc[use_cols[1:], "label_encoded"]  # in series
     top_features = target_corr.abs().nlargest(min(top_k, len(target_corr))).index
     top_features = top_features.sort_values()
     cols = ["label_encoded"] + list(top_features)
@@ -239,7 +270,7 @@ def label_only_corr_heatmap(df, top_k=15, label_col="label_encoded"):
     plt.show()
 
 
-# correlation bar charts
+# tf-idf feature correlation, safe vs. vul bar charts
 
 
 def label_corr_bars(df, top_k=10, label_col="label_encoded"):
@@ -293,7 +324,36 @@ def label_corr_bars(df, top_k=10, label_col="label_encoded"):
         plt.show()
 
 
+# histogram for safe vs. vul tokens PER function
+
+
+def function_length(df, label_col="label_encoded", top_n=2):
+    # have to 'estimate' function length as the SUM of token weights PER each row
+    meta = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
+    num_cols = [
+        c for c in df.select_dtypes(include=[np.number]).columns if c not in meta
+    ]
+    # ffs why was that so hard
+    if not num_cols:
+        print("No token columns found.")
+        return
+    df["function_length"] = df[num_cols].sum(axis=1)
+    labels = {0: "Safe", 1: "Vulnerable"}
+    plt.figure(figsize=(8, 6))
+    for val, label in labels.items():
+        subset = df[df[label_col] == val]["function_length"]
+        plt.hist(subset, bins=100, alpha=0.35, label=label, density=True)
+    plt.title("Function Length Distribution i.e. tokens per function")
+    plt.xlabel("~Number of Tokens")
+    plt.yscale("log")
+    plt.ylabel("Density")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
 def main():
+    missing_unknown_plot(df)
     safe_vs_vul()
     c_vs_cplus()
     top_cwes()
@@ -302,6 +362,7 @@ def main():
     feature_heatmap()
     label_only_corr_heatmap(df, top_k=15, label_col="label_encoded")
     label_corr_bars(df, top_k=12, label_col="label_encoded")
+    function_length(df, label_col="label_encoded", top_n=2)
 
 
 main()
