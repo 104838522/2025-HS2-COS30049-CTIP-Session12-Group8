@@ -3,8 +3,12 @@ import pandas as pd
 # from IPython.#display import #display
 import re   # Regular expressions
 import numpy as np  # Numerical computations
+import json
 
-# Step 1: Collect all source code files inside the testcases folder
+#--------------------------------------------------------
+# Juliet dataset processing
+#--------------------------------------------------------
+# Juliet dataset: Step 1: Collect all source code files inside the testcases folder
 testcase_dir = "data/testcases"
 
 data = []
@@ -23,35 +27,35 @@ for root, dirs, files in os.walk(testcase_dir):
             except Exception as e:
                 print(f"Failed to read: {file_path}, error: {e}")
 
-#--------------------------------------Data cleaning----------------------------------------^ 
-# Step 2: Initial DataFrame creation and basic cleaning file level
-df = pd.DataFrame(data, columns=["file_path", "code"])
-print("Total files:", len(df))
-#display(df.head())
+#--------------------------------------Data cleaning (file level)----------------------------------------^ 
+# Juliet dataset: Step 2: Initial DataFrame creation and basic cleaning 
+df_juliet = pd.DataFrame(data, columns=["file_path", "code"])
+print("Total files:", len(df_juliet))
+#display(df_juliet.head())
 
 
 # 1. Delete empty files
-df = df[df["code"].str.strip() != ""]
-print("After deleting empty files:", len(df))
-#display(df.head())
+df_juliet = df_juliet[df_juliet["code"].str.strip() != ""]
+print("After deleting empty files:", len(df_juliet))
+#display(df_juliet.head())
 
 # 2. Delete duplicate code samples
-df = df.drop_duplicates(subset=["code"], keep="first")
-print("After deleting duplicate code samples:", len(df))
-#display(df.head())
+df_juliet = df_juliet.drop_duplicates(subset=["code"], keep="first")
+print("After deleting duplicate code samples:", len(df_juliet))
+#display(df_juliet.head())
 
 # 3. Delete files with unwanted keywords in the filename
 exclude_keywords = ["README", "readme", ".txt", ".md", "CMakeLists", "Makefile","main.cpp","main_linux","testcase.h"]
 pattern = "|".join(exclude_keywords)  # "README|readme|.txt|.md|CMakeLists|Makefile|main.cpp|main_linux|testcase.h"
-df = df[~df["file_path"].str.contains(pattern, case=False, na=False)]
+df_juliet = df_juliet[~df_juliet["file_path"].str.contains(pattern, case=False, na=False)]
 
-print("After deleting files with unwanted keywords:", len(df))
-#display(df.head())
+print("After deleting files with unwanted keywords:", len(df_juliet))
+#display(df_juliet.head())
 
 #Cureent Colums {"file_path", "code"}
 
-#------------------------------------------------------------------------------^ 
-# Step 3: Data Cleaning code level code column
+#-----------------------------------------Data cleaning (code level)-------------------------------------^ 
+# Juliet dataset: Step 3: Data Cleaning code level code column
 
 #  1. function to remove comments
 def remove_comments(code: str) -> str:
@@ -62,11 +66,11 @@ def remove_comments(code: str) -> str:
     return code
 
 # add a new column
-df["code_no_comments"] = df["code"].apply(remove_comments)
+df_juliet["code_no_comments"] = df_juliet["code"].apply(remove_comments)
 # delete a old column
-df = df.drop(columns=["code"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["code"], errors="ignore")
 print("Completed removing comments")
-#display(df.head())
+#display(df_juliet.head())
 
 
 #  2. function to normalize whitespace
@@ -81,11 +85,11 @@ def normalize_whitespace(code: str) -> str:
     return code.strip()
 
 # add a new column
-df["code_normalized"] = df["code_no_comments"].apply(normalize_whitespace)
+df_juliet["code_normalized"] = df_juliet["code_no_comments"].apply(normalize_whitespace)
 # delete a old column
-df = df.drop(columns=["code_no_comments"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["code_no_comments"], errors="ignore")
 print("Completed normalizing whitespace")
-#display(df.head())
+#display(df_juliet.head())
 
 
 # 3. Split code into functions
@@ -101,24 +105,24 @@ def split_functions(code: str):
 
 
 # add a new column and explode into multiple rows
-df = df.assign(functions=df["code_normalized"].apply(split_functions)).explode("functions").reset_index(drop=True)#reference: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html
-#df.assing(functions=...) → add a new column named "functions"
-#df["code_normalized"].apply(split_functions) → apply the split_functions to each row in the "code_normalized" column
+df_juliet = df_juliet.assign(functions=df_juliet["code_normalized"].apply(split_functions)).explode("functions").reset_index(drop=True)#reference: https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.explode.html
+#df_juliet.assing(functions=...) → add a new column named "functions"
+#df_juliet["code_normalized"].apply(split_functions) → apply the split_functions to each row in the "code_normalized" column
 #.explode("functions") → create a new row for each element in the "functions" list
 #.reset_index(drop=True) → reset the index after exploding
 
 # delete a old column
-df = df.drop(columns=["code_normalized"], errors="ignore")
-print("The total number of samples (function blocks):", len(df))
-#display(df.head())
+df_juliet = df_juliet.drop(columns=["code_normalized"], errors="ignore")
+print("The total number of samples (function blocks):", len(df_juliet))
+#display(df_juliet.head())
 
 #Cureent Colums {"file_path", "functions"}
 #------------------------------------------------------------------------------^ 
-# Step 4: Add  id, language, Vulnerability ID / Type columns(metadata)
+# Juliet dataset: Step 4: Add  id, language, Vulnerability ID / Type columns(metadata)
 
 #  1. ID 
-df = df.reset_index(drop=True)  
-df["id"] = df.index + 1         # ID starts from 1
+df_juliet = df_juliet.reset_index(drop=True)  
+df_juliet["id"] = df_juliet.index + 1         # ID starts from 1
 
 #  2. Language
 def detect_language(path: str) -> str:
@@ -129,95 +133,96 @@ def detect_language(path: str) -> str:
     else:
         return "Unknown"
 
-df["language"] = df["file_path"].apply(detect_language)
+df_juliet["language"] = df_juliet["file_path"].apply(detect_language)
 
-# 3. Vulnerability ID  (Only CWE "number")
+# 3. Vulnerability Type
+# ex: CWE121_Stack_Based_Buffer_Overflow -> "Stack_Based_Buffer_Overflow"
+df_juliet["vulnerability_type"] = df_juliet["file_path"].str.extract(r"CWE\d+_(.+?)(?:[\\/]|$)")
 
-# ex: CWE121 → 121
-df["vulnerability_cwe_id"] = df["file_path"].str.extract(r"CWE(\d+)")
-df["vulnerability_cwe_id"] = df["vulnerability_cwe_id"].fillna("0").astype(int)  # fill NaN with 0 and convert to int
+# NaN value -> unknown
+df_juliet["vulnerability_type"] = df_juliet["vulnerability_type"].fillna("Unknown")
 
-print("Complete ID and Language & vulnerability_cwe_id columns")
-#display(df.head())
-#Cureent Colums {"file_path", "functions", "id", "language", "vulnerability_cwe_id"}
+
+print("Complete ID and Language & vulnerability_type columns")
+#display(df_juliet.head())
+#Cureent Colums {"file_path", "functions", "id", "language", "vulnerability_type"}
 
 #------------------------------------------------------------------------------^ 
-#Step 5: Vulnerable / Safe labeling (
+# Juliet dataset: Step 5: Vulnerable / Safe labeling (
 
-df["label"] = "unknown"  # default label
+df_juliet["label"] = "unknown"  # default label
 
 # vulnerable label
-df.loc[
-    df["functions"].str.contains("bad", case=False, na=False) |
-    df["file_path"].str.contains("bad", case=False, na=False),
+df_juliet.loc[
+    df_juliet["functions"].str.contains("bad", case=False, na=False) |
+    df_juliet["file_path"].str.contains("bad", case=False, na=False),
     "label"
 ] = "vulnerable"
 
 # safe label
-df.loc[
-    df["functions"].str.contains("good", case=False, na=False) |
-    df["file_path"].str.contains("good", case=False, na=False),
+df_juliet.loc[
+    df_juliet["functions"].str.contains("good", case=False, na=False) |
+    df_juliet["file_path"].str.contains("good", case=False, na=False),
     "label"
 ] = "safe"
 
 #delete old column
-df = df.drop(columns=["file_path"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["file_path"], errors="ignore")
 print("Completed labeling")
-#display(df.head())
+#display(df_juliet.head())
 
-#Cureent Colums {"functions", "id", "language", "vulnerability_cwe_id",  "label"}
+#Cureent Colums {"functions", "id", "language", "vulnerability_type",  "label"}
 
 #------------------------------------------------------------------------------^
-#  Step 6: Handle missing values (NaN)
+# Juliet dataset: Step 6: Handle missing values (NaN)
 
 # Check missing values
-print("The number of missing values :\n", df.isna().sum())
+print("The number of missing values :\n", df_juliet.isna().sum())
 
 # delete rows with 'unknown' label
-df = df[df["label"] != "unknown"]
+df_juliet = df_juliet[df_juliet["label"] != "unknown"]
 
 # # If there are missing values, remove them (dropna)  or replace with default values (fillna)
 
 #if any column has NaN in 'functions', drop those rows
-df = df.dropna(subset=["functions"])
+df_juliet = df_juliet.dropna(subset=["functions"])
 
 # fill unknown or 0 for other columns
-df = df.fillna({
+df_juliet = df_juliet.fillna({
     "language": "Unknown",
-    "vulnerability_cwe_id": "0"
+    "vulnerability_type": "Unknown"
 })
-df["vulnerability_cwe_id"] = df["vulnerability_cwe_id"].astype(int)
 
 
 
 print("Completed handling missing values")
-#display(df.head())
-#Cureent Colums {"functions", "id", "language", "vulnerability_cwe_id", "label"}
+#display(df_juliet.head())
+#Cureent Colums {"functions", "id", "language", "vulnerability_type", "label"}
 
 #--------------------------------Transformation----------------------------------------------^
-#  Step 7: One-Hot Encoding (language) & 
+#  Juliet dataset: Step 7: One-Hot Encoding (language) & 
 # 1.mapping label to integers (safe:0, vulnerable:1)
-df["label_encoded"] = df["label"].map({
+df_juliet["label_encoded"] = df_juliet["label"].map({
     "safe": 0,
     "vulnerable": 1
 })
 # delete old column
-df = df.drop(columns=["label"], errors="ignore")
-print(df["label_encoded"].head())
+df_juliet = df_juliet.drop(columns=["label"], errors="ignore")
+print(df_juliet["label_encoded"].head())
 
 # 2. language → One-Hot Encoding
-language_onehot = pd.get_dummies(df["language"], prefix="lang").astype(int)
+language_onehot = pd.get_dummies(df_juliet["language"], prefix="lang").astype(int)
 
 # combine with the original dataframe
-df = pd.concat([df, language_onehot], axis=1)
+df_juliet = pd.concat([df_juliet, language_onehot], axis=1)
 
 # delete old column
-df = df.drop(columns=["language"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["language"], errors="ignore")
 print("One-Hot Encoding completed")
-#Cureent Colums {"functions", "id", "vulnerability_cwe_id",  "label_encoded", "lang_C", "lang_C++", "lang_Unknown"}
+#Cureent Colums {"functions", "id", "vulnerability_type",  "label_encoded", "lang_C", "lang_C++", "lang_Unknown"}
 
 #------------------------------------------------------------------------------^
-# Step 8: Tokenization
+# Juliet dataset: Step 8: Tokenization
 
 def tokenize_code(code: str):
     
@@ -225,16 +230,16 @@ def tokenize_code(code: str):
     return tokens
 
 # add a new column
-df["tokens"] = df["functions"].apply(tokenize_code)
+df_juliet["tokens"] = df_juliet["functions"].apply(tokenize_code)
 print("Completed tokenization")
 # delete old column
-df = df.drop(columns=["functions"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["functions"], errors="ignore")
 
-#display(df["tokens"].head())
-#Cureent Colums {"id", "vulnerability_cwe_id", "label_encoded", "lang_C", "lang_C++", "lang_Unknown", "tokens"}
+#display(df_juliet["tokens"].head())
+#Cureent Colums {"id", "vulnerability_type", "label_encoded", "lang_C", "lang_C++", "lang_Unknown", "tokens"}
 
 #------------------------------------------------------------------------------^
-#  Step 9: Normalization
+#  Juliet dataset: Step 9: Normalization
 #  C & C++ keywords set
 keywords = { # reference:  https://www.w3schools.com/c/c_ref_keywords.php & https://www.w3schools.com/cpp/cpp_ref_keywords.asp
     # C keywords
@@ -271,55 +276,146 @@ def normalize_tokens(tokens):
 
     return normalized
 
-df["tokens_normalized"] = df["tokens"].apply(normalize_tokens)
+df_juliet["tokens_normalized"] = df_juliet["tokens"].apply(normalize_tokens)
 
 print("Completed normalization")
 # delete old column
-df = df.drop(columns=["tokens"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["tokens"], errors="ignore")
 
-#display(df[ "tokens_normalized"].head())
-#Cureent Colums {"id", "vulnerability_cwe_id",  "label_encoded", "lang_C", "lang_C++", "lang_Unknown", "tokens_normalized"}
+#------------------------------------------------------------------------------^
+# Juliet dataset: Step 10: Remove too short or meaningless functions (quality filtering)
 
-#-----------------------Feature Engineering------------------------------------------------^
-#  Step 10: Feature engineering: TF-IDF Vectorization
+# minimum number of tokens to keep a function
+MIN_TOKENS = 10  
+
+df_juliet["token_count"] = df_juliet["tokens_normalized"].apply(len)
+df_juliet = df_juliet[df_juliet["token_count"] >= MIN_TOKENS]
+
+# only more than 10 tokens
+df_juliet = df_juliet.drop(columns=["token_count"], errors="ignore")
+
+#display(df_juliet[ "tokens_normalized"].head())
+#Cureent Colums {"id", "vulnerability_type",  "label_encoded", "lang_C", "lang_C++", "lang_Unknown", "tokens_normalized"}
+
+#------------------------------------------------------------------------------^
+#basic_data_3.jsonl
+#------------------------------------------------------------------------------^
+# Basic_data: Step 1: Load JSONL dataset
+records = []
+with open("basic_data_3.jsonl", "r", encoding="utf-8") as f:
+    buffer = ""
+    #----------------------------
+    for line in f:
+        line = line.strip()
+        if not line:
+            continue
+        buffer += line
+        if line.endswith("}"):
+            try:
+                records.append(json.loads(buffer))
+            except:
+                pass
+            buffer = ""
+    #--------------------------
+df_basic = pd.DataFrame(records)
+print("Total samples:", len(df_basic))
+
+#------------------------------------------------------------------------------^
+# Basic_data: Step 2: Keep required columns
+df_basic = df_basic[["language", "vulnerability_type", "code_snippet"]].copy()
+df_basic.rename(columns={"code_snippet": "code"}, inplace=True)
+
+# Assign ID
+df_basic = df_basic.reset_index(drop=True)
+df_basic["id"] = df_basic.index + 1
+
+# Label: all vulnerable
+df_basic["label_encoded"] = 1
+
+#------------------------------------------------------------------------------^
+# Basic_data: Step 3: Tokenization & normalization
+
+
+df_basic["tokens"] = df_basic["code"].apply(tokenize_code)
+df_basic["tokens_normalized"] = df_basic["tokens"].apply(normalize_tokens)
+
+# -------------------------
+# Basic_data: Step 4: Filter short code
+# -------------------------
+
+df_basic["token_count"] = df_basic["tokens_normalized"].apply(len)
+df_basic = df_basic[df_basic["token_count"] >= MIN_TOKENS].drop(columns=["token_count", "tokens"])
+
+# -------------------------
+# Basic_data: Step 5: One-hot encoding for language
+# -------------------------
+lang_onehot = pd.get_dummies(df_basic["language"], prefix="lang").astype(int)
+df_basic = pd.concat([df_basic.drop(columns=["language"]), lang_onehot], axis=1)
+
+
+
+#-----------------------Feature Engineering(Juliet & basic)------------------------------------------------^
+#  Step : Feature engineering: TF-IDF Vectorization
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# 1) transform tokens list to string
-df["tokens_str"] = df["tokens_normalized"].apply(lambda x: " ".join(x))
-# delete old column
-df = df.drop(columns=["tokens_normalized"], errors="ignore")  
+# 1) transform tokens list to string & drop old column
+df_juliet["tokens_str"] = df_juliet["tokens_normalized"].apply(lambda x: " ".join(x))
+df_juliet = df_juliet.drop(columns=["tokens_normalized"], errors="ignore")  
 
-# 2) Apply TF-IDF 
-vectorizer = TfidfVectorizer() #Create tf-idf vectorizer object
-X_tfidf = vectorizer.fit_transform(df["tokens_str"]) #transform the text data into TF-IDF feature matrix
+df_basic["tokens_str"] = df_basic["tokens_normalized"].apply(lambda x: " ".join(x))
+df_basic = df_basic.drop(columns=["tokens_normalized", "code"])
 
-print("TF-IDF Feature Matrix shape(samples,colums):", X_tfidf.shape)# => (The num of functions,The nun of colunms)
+#  2) Combine the tokens from both datasets for a unified vocabulary
+all_tokens = pd.concat([df_juliet["tokens_str"], df_basic["tokens_str"]])
 
-# 3) Create a DataFrame from the TF-IDF matrix
-tfidf_df = pd.DataFrame(
-    X_tfidf.toarray(),
-    columns=vectorizer.get_feature_names_out()
+# 3) Fit vectorizer on combined tokens
+vectorizer = TfidfVectorizer(min_df=5)  # ignore tokens that appear in less than 5 documents
+vectorizer.fit(all_tokens)
+
+# 4) Juliet 변환
+X_juliet = vectorizer.transform(df_juliet["tokens_str"])
+df_juliet_final = pd.concat(
+    [df_juliet.reset_index(drop=True).drop(columns=["tokens_str"]),
+     pd.DataFrame(X_juliet.toarray(), columns=vectorizer.get_feature_names_out())],
+    axis=1
 )
-#display(tfidf_df.head())
 
-# delete old column
-df = df.drop(columns=["tokens_str"], errors="ignore")
+# 5) Basic 변환
+X_basic = vectorizer.transform(df_basic["tokens_str"])
+df_basic_final = pd.concat(
+    [df_basic.reset_index(drop=True).drop(columns=["tokens_str"]),
+     pd.DataFrame(X_basic.toarray(), columns=vectorizer.get_feature_names_out())],
+    axis=1
+)
 
-# Combine the original df with the tfidf_df
-df_final = pd.concat([df.reset_index(drop=True), tfidf_df.reset_index(drop=True)], axis=1)
+# 6) Merge
+df_merged = pd.concat([df_juliet_final, df_basic_final], axis=0, ignore_index=True).fillna(0)
+# delete old id column
+df_merged = df_merged.drop(columns=["id"], errors="ignore")
+# Reassign new ID
+df_merged = df_merged.reset_index(drop=True)
+df_merged["id"] = df_merged.index + 1
 
-print("final DataFrame shape:", df_final.shape)
-#display(df_final.head())
+print("Merged dataset shape:", df_merged.shape)
+print(df_merged.head())
+# -------------------------------
+# column reordering
+# -------------------------------
+lang_cols = sorted([c for c in df_merged.columns if c.startswith("lang_")])
+front_cols = ["id", "vulnerability_type","label_encoded"] + lang_cols
+other_cols = [c for c in df_merged.columns if c not in front_cols]
+
+df_merged = df_merged[front_cols + other_cols]
 
 #-----------------------Final Save----------------------------------------------------^
-# # step 11: Save final processed dataset
+# # step : Save final processed dataset
 
 # CSV file 
 output_path_csv_final = "processed_dataset_final.csv"
-df_final.to_csv(output_path_csv_final, index=False, encoding="utf-8-sig")
+df_merged.to_csv(output_path_csv_final, index=False, encoding="utf-8-sig")
 print(f"completed final csv file path: {output_path_csv_final}")
 
 # JSON Lines files
 output_path_jsonl_final = "processed_dataset_final.jsonl"
-df_final.to_json(output_path_jsonl_final, orient="records", lines=True, force_ascii=False)
+df_merged.to_json(output_path_jsonl_final, orient="records", lines=True, force_ascii=False)
 print(f"completed final jsonl file path : {output_path_jsonl_final}")
