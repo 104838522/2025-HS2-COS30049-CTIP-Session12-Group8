@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os, sys
+import seaborn as sns
 
 pd.set_option("display.max_columns", 120)
 pd.set_option("display.width", 160)
@@ -174,12 +175,160 @@ def av_tfidf_weight():
     plt.show()
 
 
+# heatmap, keyword frequencies and safe or vuln
+
+
+def feature_heatmap(top_k=15):
+    # pick only numeric TF-IDF/token features + label
+    use_cols = [
+        c
+        for c in df.select_dtypes(include=[np.number]).columns
+        if df[c].var() > 0 and c != "id"
+    ]
+    if "label_encoded" not in df.columns:
+        print("Missing 'label_encoded' column")
+        return
+
+    use_cols = ["label_encoded"] + [c for c in use_cols if c != "label_encoded"]
+
+    # correlation matrix
+    corr = df[use_cols].corr(numeric_only=True)
+
+    # make sure we pull a Series, not a DataFrame
+    target_corr = corr.loc[use_cols[1:], "label_encoded"]
+
+    # top_k by absolute correlation
+    top_features = target_corr.abs().nlargest(min(top_k, len(target_corr))).index
+    top_features = top_features.sort_values()
+
+    # recompute subset (label + top features)
+    cols = ["label_encoded"] + list(top_features)
+    corr_subset = df[cols].corr(numeric_only=True)
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        corr_subset,
+        annot=True,
+        fmt=".2f",
+        cmap="coolwarm",
+        cbar=True,
+        xticklabels=corr_subset.columns,
+        yticklabels=corr_subset.columns,
+    )
+    plt.title("Correlation Heatmap (Top TF-IDF Features vs Vulnerability)")
+    plt.tight_layout()
+    plt.show()
+
+
+# top k tokens vs safe or vuln (better readability)
+
+
+def label_only_corr_heatmap(df, top_k=15, label_col="label_encoded"):
+    # numeric features excluding obvious meta
+    meta = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    feat_cols = [c for c in num_cols if c not in meta and df[c].var() > 0]
+
+    if label_col not in df.columns or not feat_cols:
+        print("Missing label or no usable numeric features.")
+        return
+
+    # correlations with label → Series
+    r = df[feat_cols].corrwith(df[label_col]).dropna()
+
+    # pick strongest by absolute value
+    top_feats = r.abs().nlargest(min(top_k, len(r))).index.tolist()
+
+    # 1-row matrix: label vs top features
+    vals = r[top_feats].values[np.newaxis, :]  # shape (1, K)
+    vmax = np.max(np.abs(vals))
+    vmin = -vmax
+
+    plt.figure(figsize=(1.0 + 0.55 * len(top_feats), 3.2))
+    im = plt.imshow(vals, aspect="auto", vmin=vmin, vmax=vmax, cmap="coolwarm")
+    plt.colorbar(im, fraction=0.046, pad=0.04)
+
+    # ticks / labels
+    plt.xticks(range(len(top_feats)), top_feats, rotation=45, ha="right", fontsize=10)
+    plt.yticks([0], [label_col], fontsize=11)
+
+    # annotate values
+    for j, v in enumerate(vals[0]):
+        plt.text(
+            j, 0, f"{v:+.2f}", ha="center", va="center", fontsize=10, fontweight="bold"
+        )
+
+    plt.title(f"Correlation with {label_col} (Top {len(top_feats)})", fontsize=13)
+    plt.tight_layout()
+    plt.show()
+
+
+# correlation bar charts
+
+
+def label_corr_bars(df, top_k=10, label_col="label_encoded"):
+    meta = {"id", label_col, "vulnerability_cwe_id", "lang_C", "lang_C++"}
+    num_cols = df.select_dtypes(include=[np.number]).columns
+    feat_cols = [c for c in num_cols if c not in meta and df[c].var() > 0]
+
+    if label_col not in df.columns or not feat_cols:
+        print("Missing label or no usable numeric features.")
+        return
+
+    r = df[feat_cols].corrwith(df[label_col]).dropna()
+
+    # top positive / negative
+    pos = r[r > 0].sort_values(ascending=False).head(top_k)
+    neg = r[r < 0].sort_values(ascending=True).head(top_k)  # most negative
+
+    # POSITIVE
+    if not pos.empty:
+        fig, ax = plt.subplots(figsize=(1.0 + 0.6 * len(pos), 4.0))
+        ax.bar(pos.index, pos.values)
+        ax.set_title(f"Top {len(pos)} Positively Correlated Tokens vs {label_col}")
+        ax.set_xlabel("Token")
+        ax.set_ylabel("Pearson r")
+        ax.set_ylim(0, max(pos.values) * 1.15)
+        ax.tick_params(axis="x", rotation=45)
+        for i, v in enumerate(pos.values):
+            ax.text(
+                i,
+                v,
+                f"{v:+.2f}",
+                ha="center",
+                va="bottom",
+                fontsize=10,
+                fontweight="bold",
+            )
+        plt.tight_layout()
+        plt.show()
+
+    # NEGATIVE
+    if not neg.empty:
+        fig, ax = plt.subplots(figsize=(1.0 + 0.6 * len(neg), 4.0))
+        ax.bar(neg.index, neg.values)
+        ax.set_title(f"Top {len(neg)} Negatively Correlated Tokens vs {label_col}")
+        ax.set_xlabel("Token")
+        ax.set_ylabel("Pearson r")
+        ax.set_ylim(min(neg.values) * 1.15, 0)
+        ax.tick_params(axis="x", rotation=45)
+        for i, v in enumerate(neg.values):
+            ax.text(
+                i, v, f"{v:+.2f}", ha="center", va="top", fontsize=10, fontweight="bold"
+            )
+        plt.tight_layout()
+        plt.show()
+
+
 def main():
     safe_vs_vul()
     c_vs_cplus()
     top_cwes()
     safe_vul_per_lang()
     av_tfidf_weight()
+    feature_heatmap()
+    label_only_corr_heatmap(df, top_k=15, label_col="label_encoded")
+    label_corr_bars(df, top_k=12, label_col="label_encoded")
 
 
 main()
