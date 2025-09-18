@@ -94,14 +94,56 @@ print("Completed normalizing whitespace")
 
 # 3. Split code into functions
 def split_functions(code: str):
-    pattern = re.compile(
-        r"[a-zA-Z_][a-zA-Z0-9_]*\s+\**[a-zA-Z_][a-zA-Z0-9_]*\s*\([^)]*\)\s*\{[^}]*\}",#reference: https://stackoverflow.com/questions/241327/remove-c-and-c-comments-using-python
-        re.DOTALL
+    """
+    함수 정의만 정확히 잘라내기:
+      - 생성자/소멸자, 클래스 스코프(Class::meth), 템플릿, operator 함수 지원
+      - ) 뒤 수식어: const / noexcept / override / final / throw(...) 허용
+      - 후행 반환형: auto f(...) -> T 도 허용
+      - 제어문(if/for/while/switch/catch 등) 오탐 방지
+      - { } 중괄호 카운팅으로 본문 끝 위치 찾기
+      - 매칭 실패 시 [] (빈 리스트) 반환
+    """
+    import re
+
+    results = []
+    header_pattern = re.compile(
+        r'(?:^|\n)\s*'                                 # 보통 줄 시작에서 함수 헤더 시작
+        r'(?:template\s*<[^>{}]*>\s*)*'                # template<...> (선택)
+        r'(?:\[\[[^\]]*\]\]\s*)*'                      # [[attributes]] (선택)
+        r'(?:[A-Za-z_][A-Za-z0-9_\s\*\&\(\),:<>~]*\s+)?' # 반환형/스코프/수식어 (생성자 대비, 선택)
+        r'(?!(?:if|for|while|switch|catch|return|sizeof)\b)'  # 제어문 배제
+        r'([A-Za-z_][A-Za-z0-9_:<>~]*|operator[^\s(]*)\s*'    # 함수명 또는 operator=,operator<<,operator()
+        r'\([^;{}]*\)\s*'                             # 파라미터 (...)
+        r'(?:->\s*[A-Za-z_][A-Za-z0-9_:<>\s\*\&]+)?\s*'       # 후행 반환형: -> T (선택)
+        r'(?:\s*(?:const|noexcept(?:\s*\([^)]*\))?|override|final|throw\s*\([^)]*\)))*\s*'  # 수식어 (선택)
+        r'\{',                                         # 본문 시작
+        flags=re.M | re.S
     )
-    # Extract all function blocks from the input code string as a list
-    matches = pattern.findall(code)
-    # If at least one function pattern is found, return the list; otherwise return the entire code in a list
-    return matches if matches else [code]
+
+    for m in header_pattern.finditer(code):
+        start = m.start()
+        open_brace_idx = code.find('{', m.end() - 1)
+        if open_brace_idx == -1:
+            continue
+
+        # 중괄호 짝맞춤으로 함수 본문 끝 찾기
+        depth = 0
+        idx = open_brace_idx
+        while idx < len(code):
+            ch = code[idx]
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    results.append(code[start:idx+1])
+                    break
+            idx += 1
+
+    # ⚠️ 파일 전체를 "함수"로 오인하지 않도록, 매칭 없으면 빈 리스트 반환
+    return results
+
+
 
 
 # add a new column and explode into multiple rows
@@ -149,27 +191,43 @@ print("Complete ID and Language & vulnerability_type columns")
 
 #------------------------------------------------------------------------------^ 
 # Juliet dataset: Step 5: Vulnerable / Safe labeling (
+# extract function name from code
+def get_function_name(code: str):
+    """
+    Extract function name from a function definition.
+    Supports:
+      - Normal functions: void foo()
+      - Class methods: ClassName::method()
+      - Destructors: ~ClassName()
+      - Templates: template<class T> T func()
+      - Operators: operator=, operator<<, operator++
+    """
+    pattern = re.compile(
+        r"\s*"
+        r"(?:template\s*<[^>{}]*>\s*)*"                       # template<...> (선택)
+        r"(?:\[\[[^\]]*\]\]\s*)*"                             # [[attributes]] (선택)
+        r"(?:[A-Za-z_][A-Za-z0-9_\s\*\&\(\),:<>~]*\s+)?"      # 반환형/스코프/수식어 (선택)
+        r"(?!(?:if|for|while|switch|catch|return|sizeof)\b)"  # 제어문 배제
+        r"([A-Za-z_][A-Za-z0-9_:<>~]*|operator[^\s(]*)\s*"    # 함수명/스코프 또는 operator...
+        r"\(",                                                # 파라미터 시작
+        flags=re.M | re.S                                  # opening parenthesis
+    )
+    m = pattern.match(code)
+    return m.group(1) if m else ""
 
-df_juliet["label"] = "unknown"  # default label
 
-# vulnerable label
-df_juliet.loc[
-    df_juliet["functions"].str.contains("bad", case=False, na=False) |
-    df_juliet["file_path"].str.contains("bad", case=False, na=False),
-    "label"
-] = "vulnerable"
+df_juliet["func_name"] = df_juliet["functions"].apply(get_function_name)
 
-# safe label
-df_juliet.loc[
-    df_juliet["functions"].str.contains("good", case=False, na=False) |
-    df_juliet["file_path"].str.contains("good", case=False, na=False),
-    "label"
-] = "safe"
+# 라벨링: 함수 이름 기준
+df_juliet["label"] = "unknown"
+df_juliet.loc[df_juliet["func_name"].str.contains("good", case=False, na=False), "label"] = "safe"
+df_juliet.loc[df_juliet["func_name"].str.contains("bad", case=False, na=False), "label"] = "vulnerable"
+
 
 #delete old column
 df_juliet = df_juliet.drop(columns=["file_path"], errors="ignore")
+df_juliet = df_juliet.drop(columns=["func_name"], errors="ignore")
 print("Completed labeling")
-#display(df_juliet.head())
 
 #Cureent Colums {"functions", "id", "language", "vulnerability_type",  "label"}
 
@@ -411,7 +469,7 @@ df_merged = df_merged[front_cols + other_cols]
 # # step : Save final processed dataset
 
 # CSV file 
-output_path_csv_final = "processed_dataset_final.csv"
+output_path_csv_final = "processed_dataset_final4.csv"
 df_merged.to_csv(output_path_csv_final, index=False, encoding="utf-8-sig")
 print(f"completed final csv file path: {output_path_csv_final}")
 
