@@ -94,15 +94,7 @@ print("Completed normalizing whitespace")
 
 # 3. Split code into functions
 def split_functions(code: str):
-    """
-    함수 정의만 정확히 잘라내기:
-      - 생성자/소멸자, 클래스 스코프(Class::meth), 템플릿, operator 함수 지원
-      - ) 뒤 수식어: const / noexcept / override / final / throw(...) 허용
-      - 후행 반환형: auto f(...) -> T 도 허용
-      - 제어문(if/for/while/switch/catch 등) 오탐 방지
-      - { } 중괄호 카운팅으로 본문 끝 위치 찾기
-      - 매칭 실패 시 [] (빈 리스트) 반환
-    """
+
     import re
 
     results = []
@@ -126,7 +118,7 @@ def split_functions(code: str):
         if open_brace_idx == -1:
             continue
 
-        # 중괄호 짝맞춤으로 함수 본문 끝 찾기
+        # find matching closing brace "}"
         depth = 0
         idx = open_brace_idx
         while idx < len(code):
@@ -140,7 +132,7 @@ def split_functions(code: str):
                     break
             idx += 1
 
-    # ⚠️ 파일 전체를 "함수"로 오인하지 않도록, 매칭 없으면 빈 리스트 반환
+    # return list of functions or empty list if none found
     return results
 
 
@@ -152,7 +144,10 @@ df_juliet = df_juliet.assign(functions=df_juliet["code_normalized"].apply(split_
 #df_juliet["code_normalized"].apply(split_functions) → apply the split_functions to each row in the "code_normalized" column
 #.explode("functions") → create a new row for each element in the "functions" list
 #.reset_index(drop=True) → reset the index after exploding
-
+# ⬇️ 여기 추가: NaN/빈 문자열 제거
+df_juliet = df_juliet.dropna(subset=["functions"])
+df_juliet = df_juliet[df_juliet["functions"].map(lambda x: isinstance(x, str) and x.strip() != "")]
+df_juliet = df_juliet.reset_index(drop=True)
 # delete a old column
 df_juliet = df_juliet.drop(columns=["code_normalized"], errors="ignore")
 print("The total number of samples (function blocks):", len(df_juliet))
@@ -193,6 +188,8 @@ print("Complete ID and Language & vulnerability_type columns")
 # Juliet dataset: Step 5: Vulnerable / Safe labeling (
 # extract function name from code
 def get_function_name(code: str):
+    if not isinstance(code, str):
+        return "" # early return for non-string inputs
     """
     Extract function name from a function definition.
     Supports:
@@ -218,7 +215,7 @@ def get_function_name(code: str):
 
 df_juliet["func_name"] = df_juliet["functions"].apply(get_function_name)
 
-# 라벨링: 함수 이름 기준
+#labeling based on function name
 df_juliet["label"] = "unknown"
 df_juliet.loc[df_juliet["func_name"].str.contains("good", case=False, na=False), "label"] = "safe"
 df_juliet.loc[df_juliet["func_name"].str.contains("bad", case=False, na=False), "label"] = "vulnerable"
@@ -469,7 +466,7 @@ df_merged = df_merged[front_cols + other_cols]
 # # step : Save final processed dataset
 
 # CSV file 
-output_path_csv_final = "processed_dataset_final4.csv"
+output_path_csv_final = "processed_dataset_final.csv"
 df_merged.to_csv(output_path_csv_final, index=False, encoding="utf-8-sig")
 print(f"completed final csv file path: {output_path_csv_final}")
 
