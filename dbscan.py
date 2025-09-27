@@ -1,4 +1,3 @@
-# Low-spec DBSCAN on your dataset (drop-in)
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -10,18 +9,18 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 
 # --------------------------
-# 0) Config (tune these)
+# 0) Config
 # --------------------------
 DATA_PATH = Path(
-    "/Users/gianniedwards-hernandez/Desktop/uni/2025_s2/Technology_Innovation_project/processed_dataset_final.csv"
+    "Z:\processed_dataset_final.csv"
 )
-SAMPLE_FOR_SEARCH = 50_000  # rows for small grid (reduce if needed)
-BIG_SAMPLE = 400_000  # rows to cluster after picking params (reduce if needed)
-PCA_FOR_CLUSTER = 10  # dims to keep for clustering (10–30 is typical)
-EPS_GRID = [0.5, 1.0, 1.5]  # small, fast grid
+SAMPLE_FOR_SEARCH = 5_000                                   # rows for small grid (reduce if needed)
+BIG_SAMPLE = 40_000                                         # rows to cluster after picking params (reduce if needed)
+PCA_FOR_CLUSTER = 20                                        # dims to keep for clustering
+EPS_GRID = [0.5, 1.0, 1.5]                                  # small, fast grid
 MIN_SAMPLES_GRID = [5, 10]
-SIL_SAMP_SIZE = 10_000  # silhouette sample; lower if you hit memory
-PLOT_N = 2_000  # points to show in scatter
+SIL_SAMP_SIZE = 1_000                                       # silhouette sample; lower if you hit memory
+PLOT_N = 2_000                                              # points to show in scatter
 
 
 # --------------------------
@@ -139,6 +138,44 @@ labels_big = db.fit_predict(X_big_red)
 n_clusters_big = len(set(labels_big)) - (1 if -1 in labels_big else 0)
 noise_pct = (labels_big == -1).mean() * 100.0
 print(f"[INFO] Clusters on big run: {n_clusters_big}, noise %: {noise_pct:.2f}")
+
+
+# --------------------------
+# 6.1) Map clusters to vulnerability labels
+# --------------------------
+# Align the subset used for clustering with the original dataframe
+df_big = df.loc[X_big.index]  # keep only the same rows as in X_big
+
+if "label_encoded" in df_big.columns:   # adjust if your label column has a different name
+    cluster_df = pd.DataFrame({
+        "cluster": labels_big,
+        "label": df_big["label_encoded"].values
+    })
+
+    # Noise points = cluster -1
+    print("Noise points:", (cluster_df["cluster"] == -1).sum())
+
+    # Cross-tab counts
+    ct_counts = pd.crosstab(cluster_df["cluster"], cluster_df["label"])
+
+    # Proportions per cluster
+    ct_props = ct_counts.div(ct_counts.sum(axis=1), axis=0)
+
+    print("\nCounts per cluster:")
+    print(ct_counts)
+
+    print("\nProportion vulnerable per cluster:")
+    print(ct_props.round(3))
+
+    # Optional: sort clusters by vulnerability ratio
+    if 1 in ct_props.columns:
+        sorted_clusters = ct_props[1].sort_values(ascending=False)
+        print("\nClusters ranked by vulnerability ratio:")
+        print(sorted_clusters)
+else:
+    print("[WARN] No 'label_encoded' column found in dataframe. Cannot map clusters to labels.")
+
+
 
 # Optional: silhouette on big sample (keep it sampled!)
 try:
