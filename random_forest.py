@@ -1,7 +1,6 @@
-# compare_random_forest.py
-
 import pandas as pd
 import numpy as np
+import time
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
@@ -14,7 +13,6 @@ from sklearn.metrics import (
     f1_score
 )
 from imblearn.over_sampling import RandomOverSampler
-import matplotlib.pyplot as plt
 
 # -------------------------------------------------
 # 1) Load dataset
@@ -36,22 +34,20 @@ X_train, X_test, y_train, y_test = train_test_split(
 )
 
 # -------------------------------------------------
-# 3-1) Oversampling (6:4 ratio)
+# 3-1) Oversampling
 # -------------------------------------------------
 ros = RandomOverSampler(sampling_strategy=0.67, random_state=42)
 X_train_resampled, y_train_resampled = ros.fit_resample(X_train, y_train)
 
 print("Original Train distribution:")
 print(y_train.value_counts())
-
 print("\nTrain distribution after oversampling:")
 print(y_train_resampled.value_counts())
-
-print("\nTest distribution (7:3 ratio preserved):")
+print("\nTest distribution:")
 print(y_test.value_counts())
 
 # -------------------------------------------------
-# 4) Feature Scaling (optional for RF, but keeps pipeline consistent)
+# 4) Scaling (optional for RF, but keep consistent with pipeline)
 # -------------------------------------------------
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train_resampled)
@@ -61,15 +57,28 @@ X_test_scaled = scaler.transform(X_test)
 # 5) Random Forest model
 # -------------------------------------------------
 rf_clf = RandomForestClassifier(
-    n_estimators=200,        # number of trees
-    max_depth=None,          # let trees grow until pure
-    n_jobs=-1,               # use all cores
+    n_estimators=200,
+    max_depth=None,
+    n_jobs=-1,
     random_state=42,
     verbose=1
 )
-rf_clf.fit(X_train_scaled, y_train_resampled)
-y_pred_rf = rf_clf.predict(X_test_scaled)
 
+# --- Training with timer ---
+start_train = time.time()
+rf_clf.fit(X_train_scaled, y_train_resampled)
+train_time = time.time() - start_train
+print(f"\n[INFO] Training completed in {train_time:.2f} seconds")
+
+# --- Inference with timer ---
+start_infer = time.time()
+y_pred_rf = rf_clf.predict(X_test_scaled)
+infer_time = time.time() - start_infer
+print(f"[INFO] Inference (prediction) completed in {infer_time:.4f} seconds")
+
+# -------------------------------------------------
+# 6) Evaluation
+# -------------------------------------------------
 print("\n=== Random Forest Evaluation ===")
 print(f"Accuracy: {accuracy_score(y_test, y_pred_rf):.2f}")
 print(f"Precision: {precision_score(y_test, y_pred_rf):.2f}")
@@ -81,20 +90,21 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred_rf))
 
 # -------------------------------------------------
-# 6) Summarize results for comparison table
+# 7) Summary Table
 # -------------------------------------------------
-def summarize_results(model_name, y_true, y_pred):
+def summarize_results(model_name, y_true, y_pred, train_time, infer_time):
     return {
         "Model": model_name,
         "Accuracy": accuracy_score(y_true, y_pred),
         "Precision": precision_score(y_true, y_pred),
         "Recall": recall_score(y_true, y_pred),
-        "F1-Score": f1_score(y_true, y_pred)
+        "F1-Score": f1_score(y_true, y_pred),
+        "Train Time (s)": train_time,
+        "Inference Time (s)": infer_time
     }
 
-rf_results = summarize_results("Random Forest", y_test, y_pred_rf)
+rf_results = summarize_results("Random Forest", y_test, y_pred_rf, train_time, infer_time)
 
 results_df = pd.DataFrame([rf_results])
-
 print("\n=== Model Performance Summary ===")
 print(results_df.round(3))

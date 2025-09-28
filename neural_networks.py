@@ -1,7 +1,6 @@
-# compare_neural_network.py
-
 import pandas as pd
 import numpy as np
+import time
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.neural_network import MLPClassifier
@@ -65,8 +64,20 @@ mlp = MLPClassifier(
     random_state=42,
     verbose=True
 )
+
+# --- Training with timer ---
+start_train = time.time()
 mlp.fit(X_train_scaled, y_train_resampled)
+train_time = time.time() - start_train
+print(f"\n[INFO] Training completed in {train_time:.2f} seconds")
+
+# --- Inference with timer ---
+start_infer = time.time()
 y_pred_mlp = mlp.predict(X_test_scaled)
+infer_time = time.time() - start_infer
+print(f"[INFO] Inference (prediction) completed in {infer_time:.4f} seconds")
+
+# -------------------------------------------------
 
 print("\n=== Neural Network (MLP) Evaluation ===")
 print(f"Accuracy: {accuracy_score(y_test, y_pred_mlp):.2f}")
@@ -81,16 +92,18 @@ print(classification_report(y_test, y_pred_mlp))
 # -------------------------------------------------
 # 6) Summarize results for comparison table
 # -------------------------------------------------
-def summarize_results(model_name, y_true, y_pred):
+def summarize_results(model_name, y_true, y_pred, train_time, infer_time):
     return {
         "Model": model_name,
         "Accuracy": accuracy_score(y_true, y_pred),
         "Precision": precision_score(y_true, y_pred),
         "Recall": recall_score(y_true, y_pred),
-        "F1-Score": f1_score(y_true, y_pred)
+        "F1-Score": f1_score(y_true, y_pred),
+        "Train Time (s)": train_time,
+        "Inference Time (s)": infer_time
     }
 
-rf_results = summarize_results("Neural Networks", y_test, y_pred_mlp)
+rf_results = summarize_results("Neural Networks", y_test, y_pred_mlp, train_time, infer_time)
 
 results_df = pd.DataFrame([rf_results])
 
