@@ -80,3 +80,22 @@ print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred_xgb))
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred_xgb))
+
+# -------------------------------------------------
+# 6) Summarize results for comparison table
+# -------------------------------------------------
+def summarize_results(model_name, y_true, y_pred):
+    return {
+        "Model": model_name,
+        "Accuracy": accuracy_score(y_true, y_pred),
+        "Precision": precision_score(y_true, y_pred),
+        "Recall": recall_score(y_true, y_pred),
+        "F1-Score": f1_score(y_true, y_pred)
+    }
+
+rf_results = summarize_results("Gradient Boosting", y_test, y_pred_xgb)
+
+results_df = pd.DataFrame([rf_results])
+
+print("\n=== Model Performance Summary ===")
+print(results_df.round(3))
