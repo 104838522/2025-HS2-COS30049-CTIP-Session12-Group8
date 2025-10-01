@@ -1,5 +1,5 @@
 # --------------------------------------------
-# Fast DBSCAN with visuals (subsample + PCA for speed)
+# Fast DBSCAN with visuals (subsample + PCA for speed), modify config for dataset params
 # Metrics: Silhouette (non-noise, subsample), Number of noise points (subsample)
 # Visuals: PCA(2D) scatter on the run subset
 # --------------------------------------------
@@ -14,13 +14,14 @@ from sklearn.metrics import silhouette_score
 
 # 2) Config (edit here)
 DATA_PATH      = "processed_dataset_final.csv"  # dataset path
-EPS            = 0.6                         # DBSCAN epsilon
+EPS            = 0.8                      # DBSCAN epsilon
 MIN_SAMPLES    = 20                             # DBSCAN min_samples
-SUBSAMPLE_N    = 120000                          # run DBSCAN on a subset (None = full)
+SUBSAMPLE_N    = None                          # run DBSCAN on a subset (None = full)
 PCA_COMPONENTS = 40                             # speed-up neighborhood search
 SIL_SAMPLE     = 10000                          # silhouette sample from clustered points
 PLOT_SAMPLE    = 8000                           # plotting sample from the run subset
 RANDOM_SEED    = 42
+TOP_CLUSTER_PRINT = 10
 
 # 3) Load + select features (drop first 3 columns: id, vulnerability_type, label_encoded)
 df = pd.read_csv(DATA_PATH, low_memory=False)
@@ -59,6 +60,32 @@ if n_noise > 0:
 else:
     print("No noise points detected.")
 
+# --- Non-noise mapping: majority label + purity, plus overall breakdown ---
+nn_mask = labels != -1
+nn_total = int(nn_mask.sum())
+if nn_total > 0:
+    safe_nn = int(((y_sub == 0) & nn_mask).sum())
+    vuln_nn = int(((y_sub == 1) & nn_mask).sum())
+    print(f"Non-noise breakdown (subsample, {nn_total} total):")
+    print(f"  Safe        = {safe_nn} ({safe_nn/nn_total:.1%})")
+    print(f"  Vulnerable  = {vuln_nn} ({vuln_nn/nn_total:.1%})")
+
+    # Per-cluster majority mapping + purity (top-N by size)
+    clusters = [c for c in np.unique(labels) if c != -1]
+    sizes = {c: int((labels == c).sum()) for c in clusters}
+    clusters_sorted = sorted(clusters, key=lambda c: sizes[c], reverse=True)[:TOP_CLUSTER_PRINT]
+    print(f"Top {len(clusters_sorted)} clusters by size (cluster_id | size | majority | purity):")
+    for c in clusters_sorted:
+        m = labels == c
+        n = sizes[c]
+        safe_c = int(((y_sub == 0) & m).sum())
+        vuln_c = n - safe_c
+        majority = 0 if safe_c >= vuln_c else 1
+        purity = max(safe_c, vuln_c) / n if n > 0 else 0.0
+        print(f"  {c:>4} | {n:>6} | {majority} | {purity:.2f}")
+else:
+    print("No non-noise clusters formed.")
+
 # 8) Metrics (silhouette on clustered points only, sampled)
 mask = labels != -1
 sil_out = "N/A"
@@ -74,6 +101,15 @@ n_noise = int(np.sum(labels == -1))
 
 print(f"Silhouette Score (non-noise, subsample): {sil_out}")
 print(f"Number of noise points (on subsample): {n_noise}")
+
+# Evaluate clustering using Silhouette score
+silhouette_avg = silhouette_score(Z_run, labels)
+
+print(f'Silhouette Score: {silhouette_avg:.2f}')
+
+# Identifying noise points (labeled as -1)
+n_noise = np.sum(labels == -1)
+print(f'Number of noise points: {n_noise}')
 
 # 9) Visuals (PCA 2D for display; project run subset to 2D)
 pca_2d = PCA(n_components=2, svd_solver="randomized", random_state=RANDOM_SEED)
