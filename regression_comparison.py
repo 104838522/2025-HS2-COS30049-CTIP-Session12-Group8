@@ -1,7 +1,8 @@
 # regression_comparison.py
+# Compare regression models (Random Forest, Gradient Boosting) on a dataset
 
 import pandas as pd
-import time, psutil, os
+import time
 import tracemalloc
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -12,6 +13,7 @@ import numpy as np
 # -------------------------------------------------
 # 1) Load dataset
 # -------------------------------------------------
+# Adjust the path as necessary
 DATA_PATH = "../processed_dataset_final/processed_dataset_final.csv"
 df = pd.read_csv(DATA_PATH, low_memory=False)
 
