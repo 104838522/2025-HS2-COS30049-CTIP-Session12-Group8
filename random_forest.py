@@ -88,10 +88,12 @@ rf_reg = RandomForestRegressor(
     n_jobs=-1
 )
 
-# default parameters
-# n_estimators=200, 
-# random_state=42, 
-# n_jobs=-1
+# base parameters
+# rf_reg = RandomForestRegressor(
+#     n_estimators=200,
+#     random_state=42,
+#     n_jobs=-1
+# )
 
 # --- Training with time and memory tracking ---
 tracemalloc.start()

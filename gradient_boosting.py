@@ -19,7 +19,7 @@ df = pd.read_csv(DATA_PATH, low_memory=False)
 # 2) Features & Target
 # -------------------------------------------------
 # Use only a subset for quick testing
-df = df.sample(n=2000, random_state=42)
+# df = df.sample(n=2000, random_state=42)
 X = df.drop(columns=["id", "vulnerability_type", "label_encoded"])
 y_class = df["label_encoded"]
 
@@ -83,6 +83,13 @@ gbr = GradientBoostingRegressor(
     min_samples_leaf=1,
     random_state=42
 )
+
+# base parameters
+# gbr = GradientBoostingRegressor(
+#     n_estimators=200, 
+#     random_state=42, 
+#     subsample=1.0
+# )   
 
 # --- Training with time and memory tracking ---
 tracemalloc.start()
