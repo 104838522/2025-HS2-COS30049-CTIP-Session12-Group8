@@ -21,7 +21,7 @@ EPS = 0.7 # DBSCAN epsilon
 MIN_SAMPLES = 20 # DBSCAN min_samples
 SUBSAMPLE_N = 30000 # run DBSCAN on a subset (None = full)
 PCA_COMPONENTS = 30 # speed-up neighborhood search
-SIL_SAMPLE = 10000 # silhouette sample from clustered points
+SIL_SAMPLE = 10000 # silhouette sample from clustered points, modifying above 20,000 exponentially increases calculation time
 PLOT_SAMPLE = 4000 # plotting sample from the run subset
 RANDOM_SEED = 42
 TOP_CLUSTER_PRINT = 20
@@ -134,3 +134,4 @@ if np.any(is_noise):
 plt.title(f"DBSCAN (eps={EPS}, min_samples={MIN_SAMPLES})")
 plt.xlabel("PC1"); plt.ylabel("PC2")
 plt.tight_layout(); plt.show()
+
