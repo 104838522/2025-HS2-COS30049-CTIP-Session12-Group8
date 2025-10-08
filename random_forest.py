@@ -9,20 +9,13 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import GridSearchCV
 
-# -------------------------------------------------
-# 1) Load dataset
-# -------------------------------------------------
+# Load dataset
 DATA_PATH = "../processed_dataset_final/processed_dataset_final.csv"
 df = pd.read_csv(DATA_PATH, low_memory=False)
 
-# -------------------------------------------------
-# 2) Features & Target
-# -------------------------------------------------
-# X = df.drop(columns=["id", "vulnerability_type", "label_encoded"])
-# y_class = df["label_encoded"]
-
-# --- IGNORE ---
-# Use only a subset for quick testing
+# Features & Target
+# Use only a subset for quick testing if doing GridSearch
+# Uncomment the next line to use a smaller sample
 # df = df.sample(n=2000, random_state=42)
 X = df.drop(columns=["id", "vulnerability_type", "label_encoded"])
 y_class = df["label_encoded"]
@@ -33,24 +26,21 @@ log_reg = LogisticRegression(max_iter=1000, solver="lbfgs", n_jobs=-1)
 log_reg.fit(X, y_class)
 y = log_reg.predict_proba(X)[:, 1]
 
-# -------------------------------------------------
-# 3) Train/Test split
-# -------------------------------------------------
+# Train/Test split
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y_class
 )
 print(f"[INFO] Training samples: {len(X_train)}, Testing samples: {len(X_test)}")
-# -------------------------------------------------
-# 4) Scaling
-# -------------------------------------------------
+
+# Scaling
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
 
 # -------------------------------------------------
-# 5) Random Forest model (best technical setup)
-# -------------------------------------------------
 # Hyperparameter tuning (commented out after finding best params)
+# Uncomment to run grid search (may take time)
+# Note: if doing grid search, comment out the actual model training below
 # param_grid = {
 #     'n_estimators': [100, 300, 500],
 #     'max_depth': [10, 20, None],
@@ -76,6 +66,9 @@ X_test_scaled = scaler.transform(X_test)
 # print("Best parameters:", grid_search.best_params_)
 # results_df = pd.DataFrame(grid_search.cv_results_)
 # results_df.to_csv("random_forest_grid_search_results.csv", index=False)
+# -------------------------------------------------
+
+# Random Forest model implementation
 
 rf_reg = RandomForestRegressor(
     n_estimators=500,
@@ -87,7 +80,6 @@ rf_reg = RandomForestRegressor(
     random_state=42,
     n_jobs=-1
 )
-
 # base parameters
 # rf_reg = RandomForestRegressor(
 #     n_estimators=200,
@@ -110,9 +102,7 @@ current, peak_infer_mem = tracemalloc.get_traced_memory()
 tracemalloc.stop()
 peak_mem_mb = max(peak_train_mem, peak_infer_mem) / 1024**2
 
-# # -------------------------------------------------
-# # 6) Evaluation
-# # -------------------------------------------------
+# Evaluation
 rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
 mae = mean_absolute_error(y_test, y_pred_rf)
 r2 = r2_score(y_test, y_pred_rf)
