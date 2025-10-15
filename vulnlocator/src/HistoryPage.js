@@ -1,7 +1,10 @@
 import React from 'react';
 import { Container, Typography, Box, Card, CardContent } from '@mui/material';
+import { useAuth } from './AuthContext';
 
 export default function HistoryPage() {
+    const { user } = useAuth();
+
     return (
         <Container>
             <Typography variant="h3" component="h1" gutterBottom>
@@ -10,7 +13,11 @@ export default function HistoryPage() {
             <Box sx={{ mt: 2 }}>
                 <Card>
                     <CardContent>
-                        <Typography variant="body1">No past analyses yet. Your previously analyzed code snippets will appear here.</Typography>
+                        {user ? (
+                            <Typography variant="body1">No past analyses yet for {user.name || user.email}. Your previously analyzed code snippets will appear here.</Typography>
+                        ) : (
+                            <Typography variant="body1">Not signed in. Please sign in to view your past analyses.</Typography>
+                        )}
                     </CardContent>
                 </Card>
             </Box>

@@ -1,14 +1,17 @@
 import React, { useEffect } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from './AuthContext';
 
 export default function LogoutPage() {
     const navigate = useNavigate();
+    const { logout } = useAuth();
 
     useEffect(() => {
         // Simulate logout action: clear any auth (placeholder)
         const t = setTimeout(() => {
-            // In a real app you'd clear tokens and user state here
+            // Clear user state via AuthContext
+            logout && logout();
             navigate('/');
         }, 1200);
         return () => clearTimeout(t);

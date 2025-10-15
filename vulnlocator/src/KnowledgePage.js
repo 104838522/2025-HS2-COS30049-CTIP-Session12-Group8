@@ -1,7 +1,10 @@
 import React from 'react';
 import { Container, Typography, Box, Card, CardContent } from '@mui/material';
+import { useAuth } from './AuthContext';
 
 export default function KnowledgePage() {
+    const { user } = useAuth();
+
     return (
         <Container>
             <Typography variant="h3" component="h1" gutterBottom>
@@ -10,7 +13,11 @@ export default function KnowledgePage() {
             <Box sx={{ mt: 2 }}>
                 <Card>
                     <CardContent>
-                        <Typography variant="body1">This is the knowledge base. Add articles or resources here.</Typography>
+                        {user ? (
+                            <Typography variant="body1">Welcome {user.name || user.email}! Explore articles and resources here.</Typography>
+                        ) : (
+                            <Typography variant="body1">This is the knowledge base. Sign in to see personalised recommendations.</Typography>
+                        )}
                     </CardContent>
                 </Card>
             </Box>

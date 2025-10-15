@@ -20,6 +20,7 @@ import KnowledgePage from './KnowledgePage';
 import ProfilePage from './ProfilePage';
 import LogoutPage from './LogoutPage';
 import SettingsDialog from './SettingsDialog';
+import { useAuth } from './AuthContext';
 
 // About page component
 function About() {
@@ -36,9 +37,10 @@ function About() {
 }
 
 function App() {
+  const { user, message } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [darkSnackbarOpen, setDarkSnackbarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -52,14 +54,12 @@ function App() {
 
   const handleDarkModeToggle = () => {
     setDarkMode(!darkMode);
-    setSnackbarOpen(true);
+    setDarkSnackbarOpen(true);
   };
 
   const handleSnackbarClose = (event, reason) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbarOpen(false);
+    if (reason === 'clickaway') return;
+    setDarkSnackbarOpen(false);
   };
 
   const handleDialogOpen = () => {
@@ -159,6 +159,12 @@ function App() {
               }}
             />
           </Box>
+          {user && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
+              <Avatar sx={{ width: 36, height: 36 }}>{(user.name || user.email || 'U').slice(0, 2)}</Avatar>
+              <Typography variant="body2">{user.name || user.email}</Typography>
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
 
@@ -228,7 +234,7 @@ function App() {
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexDirection: 'row-reverse' }}>
                   <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>A</Avatar>
                   <Box sx={{ bgcolor: darkMode ? 'grey.800' : 'grey.200', p: 1.5, borderRadius: 2, boxShadow: 1, maxWidth: '80%' }}>
-                    <Typography variant="body1">Just paste your code or upload a file, and VulnLocator will analyze it for vulnerabilities!</Typography>
+                    <Typography variant="body1">Just paste your code or upload a file, and VulnLocator will analyse it for vulnerabilities!</Typography>
                   </Box>
                 </Box>
               </Box>
@@ -283,9 +289,16 @@ function App() {
       </Box>
 
 
-      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
+      <Snackbar open={darkSnackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
         <Alert onClose={handleSnackbarClose} severity="success" sx={{ width: '100%' }}>
           {darkMode ? 'Dark mode enabled!' : 'Light mode enabled!'}
+        </Alert>
+      </Snackbar>
+
+      {/* Auth messages from AuthContext */}
+      <Snackbar open={Boolean(message)} autoHideDuration={4000} onClose={() => { }} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity={message?.severity || 'info'} sx={{ width: '100%' }}>
+          {message?.text}
         </Alert>
       </Snackbar>
 
