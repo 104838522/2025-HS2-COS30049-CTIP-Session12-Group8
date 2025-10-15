@@ -85,7 +85,7 @@ function App() {
     setTimeout(() => {
       setLoading(false);
       handleDialogClose();
-      setSnackbarOpen(true);
+      setDarkSnackbarOpen(true);
     }, 2000);
   };
 
