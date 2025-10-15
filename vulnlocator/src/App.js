@@ -15,6 +15,11 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import HistoryPage from './HistoryPage';
+import KnowledgePage from './KnowledgePage';
+import ProfilePage from './ProfilePage';
+import LogoutPage from './LogoutPage';
+import SettingsDialog from './SettingsDialog';
 
 // About page component
 function About() {
@@ -35,6 +40,7 @@ function App() {
   const [darkMode, setDarkMode] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const toggleDrawer = (open) => (event) => {
@@ -62,6 +68,16 @@ function App() {
 
   const handleDialogClose = () => {
     setDialogOpen(false);
+  };
+
+  const handleSettingsOpen = (event) => {
+    // prevent drawer closing navigation if called from inside the drawer
+    event && event.stopPropagation && event.stopPropagation();
+    setSettingsOpen(true);
+  };
+
+  const handleSettingsClose = () => {
+    setSettingsOpen(false);
   };
 
   const handleSubmit = () => {
@@ -96,7 +112,7 @@ function App() {
           <ListItemIcon><AccountCircleIcon /></ListItemIcon>
           <ListItemText primary="Your profile" />
         </ListItem>
-        <ListItem button component={Link} to="/settings">
+        <ListItem button onClick={handleSettingsOpen}>
           <ListItemIcon><SettingsIcon /></ListItemIcon>
           <ListItemText primary="Settings" />
         </ListItem>
@@ -149,6 +165,8 @@ function App() {
       <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
         {drawerContent}
       </Drawer>
+
+      <SettingsDialog open={settingsOpen} onClose={handleSettingsClose} darkMode={darkMode} onToggleDarkMode={handleDarkModeToggle} />
 
       <Routes>
         <Route path="/" element={
@@ -245,6 +263,10 @@ function App() {
           </Container>
         } />
         <Route path="/about" element={<About />} />
+        <Route path="/history" element={<HistoryPage />} />
+        <Route path="/knowledge" element={<KnowledgePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/logout" element={<LogoutPage />} />
       </Routes>
 
       <Box component="footer" sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper', py: 3, mt: 'auto' }}>
