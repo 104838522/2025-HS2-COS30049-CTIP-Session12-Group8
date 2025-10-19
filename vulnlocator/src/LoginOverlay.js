@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, Stack, Divider, IconButton } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
-import GoogleIcon from '@mui/icons-material/Google';
-import FacebookIcon from '@mui/icons-material/Facebook';
+
+
 import { useAuth } from './AuthContext';
 import { useTheme } from '@mui/material/styles';
 
 export default function LoginOverlay() {
-    const { user, loginWithEmail, loginWithProvider, notify } = useAuth();
+    const { user, loginWithEmail, notify } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -24,16 +24,6 @@ export default function LoginOverlay() {
             notify('Signed in successfully', 'success');
         } catch (err) {
             setError(err.message || 'Login failed');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleProvider = async (provider) => {
-        setLoading(true);
-        try {
-            await loginWithProvider(provider);
-            notify(`Signed in with ${provider}`, 'success');
         } finally {
             setLoading(false);
         }
@@ -58,17 +48,8 @@ export default function LoginOverlay() {
                         </Box>
                     </Box>
                     <Typography variant="body1" color="text.secondary" gutterBottom sx={{ color: theme.palette.secondary.main }}>
-                        Welcome! Please select a sign-in option
+                        Welcome! Please sign in with your email
                     </Typography>
-
-                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', my: 2 }}>
-                        <IconButton aria-label="Sign in with Google" onClick={() => handleProvider('google')} sx={{ bgcolor: theme.palette.secondary.main, color: '#fff', '&:hover': { bgcolor: theme.palette.secondary.dark || theme.palette.secondary.main } }}>
-                            <GoogleIcon />
-                        </IconButton>
-                        <IconButton aria-label="Sign in with Facebook" onClick={() => handleProvider('facebook')} sx={{ bgcolor: theme.palette.secondary.main, color: '#fff', '&:hover': { bgcolor: theme.palette.secondary.dark || theme.palette.secondary.main } }}>
-                            <FacebookIcon />
-                        </IconButton>
-                    </Box>
 
                     <Divider sx={{ my: 2, bgcolor: theme.palette.secondary.main }} />
 

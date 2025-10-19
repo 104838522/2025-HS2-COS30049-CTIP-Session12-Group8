@@ -81,6 +81,9 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analysisResult, setAnalysisResult] = useState(null);
+  // Language warning dialog state
+  const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
+  const [pendingSubmission, setPendingSubmission] = useState(null);
 
   const toggleDrawer = (open) => (event) => {
     if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
@@ -126,10 +129,29 @@ function App() {
     }, 2000);
   };
 
-  const handleChatSubmit = (content) => {
+  // Simple C/C++ detection: look for #include, int main, ; at end of lines, curly braces, C/C++ keywords
+  function isLikelyCOrCpp(code) {
+    const cKeywords = /\b(int|char|float|double|void|struct|typedef|#include|#define|printf|scanf|main|return|NULL|size_t|malloc|free|if|else|for|while|do|switch|case|break|continue|enum|union|const|static|unsigned|signed|short|long|volatile|extern|register|goto|inline|namespace|class|public|private|protected|template|new|delete|cout|cin|std::|using namespace)\b/;
+    // Heuristic: must have at least 2 C/C++-like features
+    let score = 0;
+    if (/#include\s+[<"]/i.test(code)) score++;
+    if (/int\s+main\s*\(/.test(code)) score++;
+    if (cKeywords.test(code)) score++;
+    if (/;\s*$/m.test(code)) score++;
+    if (/\{[\s\S]*\}/.test(code)) score++;
+    return score >= 2;
+  }
+
+  const handleChatSubmit = (content, force = false) => {
     const payload = typeof content === 'string' ? content : chatInput;
     if (!payload || payload.trim() === '') {
       notify && notify('No content to analyse', 'warning');
+      return;
+    }
+    // Only check if not forced
+    if (!force && !isLikelyCOrCpp(payload)) {
+      setPendingSubmission(payload);
+      setLanguageWarningOpen(true);
       return;
     }
     setLoading(true);
@@ -155,6 +177,27 @@ function App() {
       setChatInput('');
     }, 1500);
   };
+  {/* Language warning dialog */ }
+  <Dialog open={languageWarningOpen} onClose={() => setLanguageWarningOpen(false)}>
+    <DialogTitle>Language not recommended</DialogTitle>
+    <DialogContent>
+      <DialogContentText>
+        Our models are trained primarily on C/C++ code. Other languages are not recommended, as results may not be accurate.
+      </DialogContentText>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={() => setLanguageWarningOpen(false)} color="inherit">Cancel</Button>
+      <Button onClick={() => {
+        setLanguageWarningOpen(false);
+        if (pendingSubmission) {
+          handleChatSubmit(pendingSubmission, true);
+          setPendingSubmission(null);
+        }
+      }} color="primary" variant="contained" autoFocus>
+        Proceed anyway
+      </Button>
+    </DialogActions>
+  </Dialog>
 
   const drawerContent = (
     <Box sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation" onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>

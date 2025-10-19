@@ -46,18 +46,6 @@ export function AuthProvider({ children }) {
         return placeholderUser;
     };
 
-    // SSO placeholders: just set a placeholder user with provider info
-    const loginWithProvider = async (provider) => {
-        const placeholderUser = { id: `user-${provider}`, name: `${provider} user`, provider };
-        setUser(placeholderUser);
-        try { localStorage.setItem('vulnlocator_user', JSON.stringify(placeholderUser)); } catch (e) { }
-        notify(`Signed in with ${provider}`, 'success');
-
-        // Example FastAPI SSO endpoint (commented out):
-        // window.location.href = 'http://localhost:8000/api/auth/oauth2/authorize/google';
-
-        return placeholderUser;
-    };
 
     const logout = () => {
         setUser(null);
@@ -65,7 +53,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loginWithEmail, loginWithProvider, logout, message, notify }}>
+        <AuthContext.Provider value={{ user, loginWithEmail, logout, message, notify }}>
             {children}
         </AuthContext.Provider>
     );
