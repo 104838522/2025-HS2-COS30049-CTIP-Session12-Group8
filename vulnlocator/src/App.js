@@ -24,8 +24,9 @@ import SettingsDialog from './SettingsDialog';
 import { useAuth } from './AuthContext';
 
 function LogoText({ small, size }) {
+  // Match LoginOverlay: yellow (#d19d00) bg, dark text, Georgia, bold, rounded, centered
   const variant = small ? 'subtitle2' : (size === 'large' ? 'h5' : 'h6');
-  const px = small ? 1.5 : (size === 'large' ? 3 : 2.5);
+  const px = small ? 1.5 : (size === 'large' ? 4 : 2.5);
   const py = small ? 0.5 : (size === 'large' ? 1.25 : 1);
   return (
     <Box sx={{
@@ -36,15 +37,28 @@ function LogoText({ small, size }) {
       borderRadius: 1,
       display: 'inline-block',
       fontFamily: 'Georgia, serif',
+      textAlign: 'center',
+      minWidth: small ? 0 : 160,
     }}>
-      <Typography variant={variant} sx={{ fontWeight: 600 }}>{'VulnLocator'}</Typography>
+      <Typography
+        variant={variant}
+        sx={{
+          fontWeight: 700,
+          fontFamily: 'Georgia, serif',
+          letterSpacing: 0.5,
+          color: '#2b2b2b',
+          lineHeight: 1.1,
+        }}
+      >
+        VulnLocator
+      </Typography>
     </Box>
   );
 }
 // About page component
 function About() {
   return (
-    <Container>
+    <Container sx={{ mt: 4 }}>
       <Typography variant="h2" component="h1" gutterBottom>
         About Us
       </Typography>
