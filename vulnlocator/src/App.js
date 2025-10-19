@@ -468,14 +468,6 @@ function App() {
         </Alert>
       </Snackbar>
 
-      {/* Auth messages from AuthContext */}
-      <Snackbar open={Boolean(message)} autoHideDuration={4000} onClose={() => { }} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert severity={message?.severity || 'info'} sx={{ width: '100%' }}>
-          {message?.text}
-        </Alert>
-      </Snackbar>
-
-      {/* ...existing code... */}
       <Dialog open={dialogOpen} onClose={handleDialogClose}>
         <DialogTitle>Contact Us</DialogTitle>
         <DialogContent>
