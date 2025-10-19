@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import React, { useState, useRef } from 'react';
+import { Route, Routes, Link, useLocation } from 'react-router-dom';
 import {
-  AppBar, Toolbar, Typography, Container, Grid, Card, CardContent, Button, Box,
+  AppBar, Toolbar, Typography, Container, Button, Box,
   Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton, TextField,
-  Switch, Snackbar, Alert, Fab, Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, CircularProgress, LinearProgress, Chip, Avatar, Divider
+  Switch, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogContentText,
+  DialogActions, CircularProgress, LinearProgress, Avatar, Divider
+  , InputAdornment
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -22,6 +23,24 @@ import LogoutPage from './LogoutPage';
 import SettingsDialog from './SettingsDialog';
 import { useAuth } from './AuthContext';
 
+function LogoText({ small, size }) {
+  const variant = small ? 'subtitle2' : (size === 'large' ? 'h5' : 'h6');
+  const px = small ? 1.5 : (size === 'large' ? 3 : 2.5);
+  const py = small ? 0.5 : (size === 'large' ? 1.25 : 1);
+  return (
+    <Box sx={{
+      bgcolor: '#d19d00',
+      color: '#2b2b2b',
+      px,
+      py,
+      borderRadius: 1,
+      display: 'inline-block',
+      fontFamily: 'Georgia, serif',
+    }}>
+      <Typography variant={variant} sx={{ fontWeight: 600 }}>{'VulnLocator'}</Typography>
+    </Box>
+  );
+}
 // About page component
 function About() {
   return (
@@ -37,13 +56,17 @@ function About() {
 }
 
 function App() {
-  const { user, message } = useAuth();
+  const { user, message, notify } = useAuth();
+  const fileInputRef = useRef(null);
+  const [chatInput, setChatInput] = useState('');
+  const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [darkSnackbarOpen, setDarkSnackbarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
 
   const toggleDrawer = (open) => (event) => {
     if (event.type === 'keydown' && (event.key === 'Tab' || event.key === 'Shift')) {
@@ -89,38 +112,89 @@ function App() {
     }, 2000);
   };
 
+  const handleChatSubmit = (content) => {
+    const payload = typeof content === 'string' ? content : chatInput;
+    if (!payload || payload.trim() === '') {
+      notify && notify('No content to analyse', 'warning');
+      return;
+    }
+    setLoading(true);
+    notify && notify('Analysis started', 'info');
+    // placeholder analysis simulation
+    setTimeout(() => {
+      setLoading(false);
+      notify && notify('Analysis complete (placeholder)', 'success');
+      // set a placeholder analysis result with per-line severities
+      const lines = payload.split('\n');
+      // simple heuristic: mark lines containing 'eval' as Medium, 'select' or 'sql' as High
+      const lineResults = lines.map((ln, idx) => {
+        const l = ln.toLowerCase();
+        if (l.includes('eval(') || l.includes('eval ')) return { line: idx + 1, severity: 'Medium' };
+        if (l.includes('select') || l.includes('sql') || l.includes("-- sql") || l.includes('exec(')) return { line: idx + 1, severity: 'High' };
+        return { line: idx + 1, severity: 'None' };
+      });
+
+      const issues = lineResults.filter(r => r.severity !== 'None').map((r, i) => ({ id: i + 1, desc: `Potential issue on line ${r.line}`, severity: r.severity, line: r.line }));
+
+      setAnalysisResult({ summary: 'Placeholder analysis result', code: payload, lineResults, issues });
+      // clear the input after submission so user isn't confused
+      setChatInput('');
+    }, 1500);
+  };
+
   const drawerContent = (
     <Box sx={{ width: 250, height: '100%', display: 'flex', flexDirection: 'column' }} role="presentation" onClick={toggleDrawer(false)} onKeyDown={toggleDrawer(false)}>
-      <List>
-        <ListItem button component={Link} to="/">
-          <ListItemIcon><MenuIcon /></ListItemIcon>
-          <ListItemText primary="Detect a vulnerability" />
-        </ListItem>
-        <ListItem button component={Link} to="/history">
-          <ListItemIcon><HistoryIcon /></ListItemIcon>
-          <ListItemText primary="Past analyses" />
-        </ListItem>
-        <ListItem button component={Link} to="/knowledge">
-          <ListItemIcon><InfoIcon /></ListItemIcon>
-          <ListItemText primary="Knowledge base" />
-        </ListItem>
-      </List>
+      {/** determine selection and colors per-item */}
+      {(() => {
+        const path = location?.pathname || '/';
+        const getColor = (selected) => {
+          if (darkMode) return selected ? 'common.white' : 'rgba(255,255,255,0.7)';
+          return selected ? 'text.primary' : 'rgba(0,0,0,0.65)';
+        };
+
+        return (
+          <List>
+            <ListItem button component={Link} to="/" selected={path === '/'}>
+              <ListItemIcon sx={{ color: getColor(path === '/') }}><MenuIcon sx={{ color: getColor(path === '/') }} /></ListItemIcon>
+              <ListItemText primary="Detect a vulnerability" sx={{ color: getColor(path === '/') }} />
+            </ListItem>
+            <ListItem button component={Link} to="/history" selected={path === '/history'}>
+              <ListItemIcon sx={{ color: getColor(path === '/history') }}><HistoryIcon sx={{ color: getColor(path === '/history') }} /></ListItemIcon>
+              <ListItemText primary="Past analyses" sx={{ color: getColor(path === '/history') }} />
+            </ListItem>
+            <ListItem button component={Link} to="/knowledge" selected={path === '/knowledge'}>
+              <ListItemIcon sx={{ color: getColor(path === '/knowledge') }}><InfoIcon sx={{ color: getColor(path === '/knowledge') }} /></ListItemIcon>
+              <ListItemText primary="Knowledge base" sx={{ color: getColor(path === '/knowledge') }} />
+            </ListItem>
+          </List>
+        );
+      })()}
       <Divider />
       <Box sx={{ flexGrow: 1 }} />
-      <List>
-        <ListItem button component={Link} to="/profile">
-          <ListItemIcon><AccountCircleIcon /></ListItemIcon>
-          <ListItemText primary="Your profile" />
-        </ListItem>
-        <ListItem button onClick={handleSettingsOpen}>
-          <ListItemIcon><SettingsIcon /></ListItemIcon>
-          <ListItemText primary="Settings" />
-        </ListItem>
-        <ListItem button component={Link} to="/logout">
-          <ListItemIcon><LogoutIcon /></ListItemIcon>
-          <ListItemText primary="Log out" />
-        </ListItem>
-      </List>
+      {(() => {
+        const path = location?.pathname || '/';
+        const getColor = (selected) => {
+          if (darkMode) return selected ? 'common.white' : 'rgba(255,255,255,0.7)';
+          return selected ? 'text.primary' : 'rgba(0,0,0,0.65)';
+        };
+
+        return (
+          <List>
+            <ListItem button component={Link} to="/profile" selected={path === '/profile'}>
+              <ListItemIcon sx={{ color: getColor(path === '/profile') }}><AccountCircleIcon sx={{ color: getColor(path === '/profile') }} /></ListItemIcon>
+              <ListItemText primary="Your profile" sx={{ color: getColor(path === '/profile') }} />
+            </ListItem>
+            <ListItem button onClick={handleSettingsOpen}>
+              <ListItemIcon sx={{ color: getColor(false) }}><SettingsIcon sx={{ color: getColor(false) }} /></ListItemIcon>
+              <ListItemText primary="Settings" sx={{ color: getColor(false) }} />
+            </ListItem>
+            <ListItem button component={Link} to="/logout" selected={path === '/logout'}>
+              <ListItemIcon sx={{ color: getColor(path === '/logout') }}><LogoutIcon sx={{ color: getColor(path === '/logout') }} /></ListItemIcon>
+              <ListItemText primary="Log out" sx={{ color: getColor(path === '/logout') }} />
+            </ListItem>
+          </List>
+        );
+      })()}
     </Box>
   );
 
@@ -141,34 +215,23 @@ function App() {
           <IconButton edge="start" color="inherit" aria-label="menu" onClick={toggleDrawer(true)}>
             <MenuIcon />
           </IconButton>
-          <Box sx={{ flexGrow: 1 }} />
-          <Button color="inherit" component={Link} to="/about">About</Button>
-          <Button color="inherit" onClick={handleDialogOpen}>Contact</Button>
-          <Box sx={{ ml: 2, display: 'flex', alignItems: 'center' }}>
-            <Typography variant="body2" sx={{ mr: 1 }}>Dark Mode</Typography>
-            <Switch
-              checked={darkMode}
-              onChange={handleDarkModeToggle}
-              sx={{
-                '& .MuiSwitch-switchBase.Mui-checked': {
-                  color: '#4a463b', // secondary.main from theme.js
-                },
-                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                  backgroundColor: '#4a463b',
-                },
-              }}
-            />
+          <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <LogoText size="large" />
           </Box>
-          {user && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 2 }}>
-              <Avatar sx={{ width: 36, height: 36 }}>{(user.name || user.email || 'U').slice(0, 2)}</Avatar>
-              <Typography variant="body2">{user.name || user.email}</Typography>
-            </Box>
-          )}
         </Toolbar>
       </AppBar>
 
-      <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={toggleDrawer(false)}
+        PaperProps={{
+          sx: {
+            bgcolor: darkMode ? 'grey.900' : 'background.paper',
+            color: darkMode ? 'common.white' : 'text.primary',
+          }
+        }}
+      >
         {drawerContent}
       </Drawer>
 
@@ -177,7 +240,7 @@ function App() {
       <Routes>
         <Route path="/" element={
           <Container component="main" sx={{
-            mt: 8,
+            mt: 2,
             mb: 2,
             flex: 1,
             display: 'flex',
@@ -189,12 +252,6 @@ function App() {
             maxHeight: '100%',
             overflow: 'hidden',
           }}>
-            <Typography variant="h2" component="h1" gutterBottom>
-              VulnLocator - Utilising machine learning models to identify software vulnerabilities
-            </Typography>
-            <Typography variant="h5" component="h2" gutterBottom>
-              Begin by entering a code snippet or uploading a file to analyse for potential vulnerabilities.
-            </Typography>
 
             {/* Chatbox UI */}
             <Box sx={{
@@ -206,7 +263,7 @@ function App() {
               bgcolor: darkMode ? 'grey.800' : 'grey.100',
               borderRadius: 3,
               boxShadow: 3,
-              mt: 4,
+              mt: 0,
               mb: 4,
               p: 2,
               minHeight: 0,
@@ -214,7 +271,8 @@ function App() {
               maxHeight: '100%',
               overflow: 'hidden',
             }}>
-              {/* Chat messages area */}
+              {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
+              {/* Code viewer area (shows submitted code with per-line highlighting) */}
               <Box sx={{
                 flex: 1,
                 overflowY: 'auto',
@@ -224,31 +282,46 @@ function App() {
                 gap: 2,
                 minHeight: 0,
               }}>
-                {/* Example messages, replace with state if needed */}
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>U</Avatar>
-                  <Box sx={{ bgcolor: darkMode ? 'grey.900' : 'white', p: 1.5, borderRadius: 2, boxShadow: 1, maxWidth: '80%' }}>
-                    <Typography variant="body1">How do I use VulnLocator?</Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, flexDirection: 'row-reverse' }}>
-                  <Avatar sx={{ bgcolor: 'secondary.main', width: 32, height: 32 }}>A</Avatar>
-                  <Box sx={{ bgcolor: darkMode ? 'grey.800' : 'grey.200', p: 1.5, borderRadius: 2, boxShadow: 1, maxWidth: '80%' }}>
-                    <Typography variant="body1">Just paste your code or upload a file, and VulnLocator will analyse it for vulnerabilities!</Typography>
-                  </Box>
-                </Box>
+                {analysisResult ? (
+                  <>
+                    <Typography variant="subtitle1">{analysisResult.summary}</Typography>
+                    <Box component="pre" sx={{ mt: 1, p: 2, bgcolor: darkMode ? 'grey.900' : '#f7f7f7', borderRadius: 1, overflowX: 'auto', fontFamily: 'monospace', fontSize: '0.95rem' }}>
+                      {analysisResult.code.split('\n').map((ln, idx) => {
+                        const res = analysisResult.lineResults[idx];
+                        const severity = res ? res.severity : 'None';
+                        const bg = severity === 'High' ? 'rgba(255,0,0,0.08)' : severity === 'Medium' ? 'rgba(255,200,0,0.06)' : 'transparent';
+                        return (
+                          <Box key={idx} component="div" sx={{ background: bg, display: 'flex', gap: 2 }}>
+                            <Box sx={{ width: 48, textAlign: 'right', pr: 1, color: darkMode ? 'grey.400' : 'grey.600' }}>{idx + 1}</Box>
+                            <Box component="span" sx={{ whiteSpace: 'pre-wrap', flex: 1 }}>{ln || '\u00A0'}</Box>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">Submit a code snippet or upload a file to see analysis results here.</Typography>
+                )}
               </Box>
               {/* Chat input area at the bottom */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
                 <TextField
                   fullWidth
-                  placeholder="Type your message..."
+                  placeholder="Paste code or type here..."
                   variant="outlined"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  multiline
+                  minRows={4}
+                  maxRows={12}
                   sx={{
                     bgcolor: darkMode ? 'grey.900' : 'white',
                     borderRadius: 2,
                     '& .MuiInputBase-input': {
                       color: darkMode ? '#fff' : 'inherit',
+                      fontFamily: 'monospace',
+                      whiteSpace: 'pre',
+                      overflow: 'auto',
                     },
                     '& .MuiInputBase-input::placeholder': {
                       color: darkMode ? '#bbb' : '#888',
@@ -256,16 +329,58 @@ function App() {
                     },
                   }}
                   InputProps={{
-                    style: {
-                      color: darkMode ? '#fff' : undefined,
-                    },
+                    style: { color: darkMode ? '#fff' : undefined },
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="attach file"
+                          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                          sx={{ bgcolor: 'primary.main', color: '#fff', '&:hover': { bgcolor: 'primary.dark' }, mr: 1 }}
+                          size="small"
+                        >
+                          <AddIcon />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
                   }}
                 />
-                <Button variant="contained" color="primary" sx={{ px: 4, py: 1.5, fontWeight: 'bold', fontSize: '1.1rem', borderRadius: 2 }}>
-                  Send
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.js,.py,.java,.c,.cpp,.json,.md,.html,.css"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    if (file.size > 200 * 1024) {
+                      notify && notify('File too large (max 200KB)', 'warning');
+                      e.target.value = null;
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      const text = ev.target.result;
+                      // set input briefly so user can see it if desired, but we'll clear after submission
+                      setChatInput(String(text));
+                      notify && notify(`Loaded ${file.name}`, 'success');
+                      // auto-submit loaded file content and then clear the input
+                      handleChatSubmit(String(text));
+                      // ensure the file input value is cleared for future uploads
+                      if (e.target) e.target.value = null;
+                    };
+                    reader.onerror = () => {
+                      notify && notify('Failed to read file', 'error');
+                      if (e.target) e.target.value = null;
+                    };
+                    reader.readAsText(file);
+                  }}
+                />
+                <Button variant="contained" color="primary" sx={{ px: 4, py: 1.5, fontWeight: 'bold', fontSize: '1.1rem', borderRadius: 2 }} onClick={() => handleChatSubmit(chatInput)} disabled={loading}>
+                  {loading ? <CircularProgress size={20} sx={{ color: '#fff' }} /> : 'Send'}
                 </Button>
               </Box>
             </Box>
+            {/* results are displayed inline above */}
           </Container>
         } />
         <Route path="/about" element={<About />} />
@@ -276,10 +391,11 @@ function App() {
       </Routes>
 
       <Box component="footer" sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper', py: 3, mt: 'auto' }}>
-        <Container maxWidth="lg">
-          <Typography variant="body1">
-
-          </Typography>
+        <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Box>
+            <Button component={Link} to="/about">About</Button>
+            <Button onClick={handleDialogOpen}>Contact</Button>
+          </Box>
           <Typography variant="body2" color="text.secondary">
             {'Copyright © Swinburne University '}
             {new Date().getFullYear()}

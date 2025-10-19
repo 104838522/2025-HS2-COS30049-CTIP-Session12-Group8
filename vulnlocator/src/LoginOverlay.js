@@ -52,7 +52,11 @@ export default function LoginOverlay() {
                 backdropFilter: 'blur(2px)'
             }}>
                 <Paper sx={{ p: 4, width: 520, borderRadius: 3, textAlign: 'center', bgcolor: theme.palette.primary.main }} elevation={8}>
-                    <Typography variant="h4" gutterBottom sx={{ color: theme.palette.secondary.main }}>VulnLocator</Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                        <Box sx={{ bgcolor: '#d19d00', color: '#2b2b2b', px: 4, py: 1, borderRadius: 1 }}>
+                            <Typography variant="h6" sx={{ fontFamily: 'Georgia, serif', fontWeight: 600 }}>VulnLocator</Typography>
+                        </Box>
+                    </Box>
                     <Typography variant="body1" color="text.secondary" gutterBottom sx={{ color: theme.palette.secondary.main }}>
                         Welcome! Please select a sign-in option
                     </Typography>
