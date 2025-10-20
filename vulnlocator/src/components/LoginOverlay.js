@@ -1,10 +1,9 @@
-// Moved from src/LoginOverlay.js
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, Stack, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 
 
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from './AuthContext';
 import { useTheme } from '@mui/material/styles';
 
 export default function LoginOverlay() {
@@ -46,6 +45,7 @@ export default function LoginOverlay() {
         }
         setLoading(true);
         try {
+            //Previous login implementation
             // Backend authentication logic (replace URL as needed)
             // Example:
             // const res = await fetch('http://localhost:8000/api/auth/login', {
@@ -56,7 +56,30 @@ export default function LoginOverlay() {
             // if (!res.ok) throw new Error('Login failed');
             // const data = await res.json();
             // await loginWithEmail({ email: cleanEmail, password: cleanPassword, userData: data });
+            //await loginWithEmail({ email: cleanEmail, password: cleanPassword });
+            //notify('Signed in successfully', 'success');
+
+            // Current implementation with FastAPI backend
+            const res = await fetch('http://localhost:8000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: cleanEmail, password: cleanPassword }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || 'Login failed');
+            }
+
+            // FastAPI response: { message, token, user }
+            const data = await res.json();
+
+            // login (use loginWithEmail of AuthContext용)
             await loginWithEmail({ email: cleanEmail, password: cleanPassword });
+
+            // store token (token from FastAPI)
+            localStorage.setItem('vulnlocator_token', data.token);
+
             notify('Signed in successfully', 'success');
         } catch (err) {
             setError(err.message || 'Login failed');
@@ -94,15 +117,50 @@ export default function LoginOverlay() {
             return;
         }
         setSignupLoading(true);
+        // Previous signup implementation
+
         // Simulate signup (replace with backend call)
-        setTimeout(() => {
-            setSignupLoading(false);
-            setSignupSuccess(true);
-            notify('Account created! Please sign in.', 'success');
-            setShowSignup(false);
-            // Optionally, clear signup fields
-            setSignupName(''); setSignupEmail(''); setSignupPassword(''); setSignupConfirm('');
-        }, 1200);
+        // setTimeout(() => {
+        //     setSignupLoading(false);
+        //     setSignupSuccess(true);
+        //     notify('Account created! Please sign in.', 'success');
+        //     setShowSignup(false);
+        //     // Optionally, clear signup fields
+        //     setSignupName(''); setSignupEmail(''); setSignupPassword(''); setSignupConfirm('');
+        // }, 1200);
+
+        // Current signup implementation
+        try {
+        // 1. request signup API
+        const res = await fetch('http://localhost:8000/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+        });
+
+        // 2. check response
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.detail || 'Signup failed');
+        }
+
+        // 3. handle success
+        setSignupSuccess(true);
+        notify('Account created! Please sign in.', 'success');
+        setShowSignup(false);
+
+        // initially clear signup fields
+        setSignupName('');
+        setSignupEmail('');
+        setSignupPassword('');
+        setSignupConfirm('');
+    } catch (err) {
+        // 4. Handle errors
+        setSignupError(err.message || 'Signup failed');
+    } finally {
+        // 5. end loading state
+        setSignupLoading(false);
+    }
     };
 
     return (
