@@ -1,4 +1,3 @@
-// Moved from src/AuthContext.js
 import React, { createContext, useContext, useState } from 'react';
 
 // Simple AuthContext for prototype purposes
@@ -22,35 +21,79 @@ export function AuthProvider({ children }) {
         setTimeout(() => setMessage(null), 4000);
     };
 
-    // Placeholder login with email/password (no backend yet)
+    
     const loginWithEmail = async ({ email, password }) => {
-        // In a real app you'd POST to an auth endpoint. Here we accept any non-empty email.
-        if (!email) throw new Error('Email required');
-        // return a placeholder user object
-        const placeholderUser = { id: 'user-1', name: 'Placeholder User', email };
-        setUser(placeholderUser);
-        try { localStorage.setItem('vulnlocator_user', JSON.stringify(placeholderUser)); } catch (e) { }
-        notify('Signed in successfully', 'success');
+        //Previous loginWithEmail implementation
+        // // In a real app you'd POST to an auth endpoint. Here we accept any non-empty email.
+        // if (!email) throw new Error('Email required');
+        // // return a placeholder user object
+        // const placeholderUser = { id: 'user-1', name: 'Placeholder User', email };
+        // setUser(placeholderUser);
+        // try { localStorage.setItem('vulnlocator_user', JSON.stringify(placeholderUser)); } catch (e) { }
+        // notify('Signed in successfully', 'success');
 
-        // Example FastAPI call (commented out - replace URL and remove comments to enable):
-        // try {
-        //   const res = await fetch('http://localhost:8000/api/auth/login', {
-        //     method: 'POST',
-        //     headers: { 'Content-Type': 'application/json' },
-        //     body: JSON.stringify({ email, password }),
-        //   });
-        //   if (!res.ok) throw new Error('Login failed');
-        //   const data = await res.json();
-        //   // set auth token, user, etc. from data
-        // }
+        // // Example FastAPI call (commented out - replace URL and remove comments to enable):
+        // // try {
+        // //   const res = await fetch('http://localhost:8000/api/auth/login', {
+        // //     method: 'POST',
+        // //     headers: { 'Content-Type': 'application/json' },
+        // //     body: JSON.stringify({ email, password }),
+        // //   });
+        // //   if (!res.ok) throw new Error('Login failed');
+        // //   const data = await res.json();
+        // //   // set auth token, user, etc. from data
+        // // }
 
-        return placeholderUser;
+        // Current implementation with FastAPI backend
+        if (!email || !password) throw new Error('Email and password required');
+
+        try {
+            const res = await fetch('http://localhost:8000/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || 'Login failed');
+            }
+
+            const data = await res.json();
+
+            // FastAPI response structure: { message, token, user }
+            const loggedInUser = {
+                ...data.user,
+                token: data.token,
+            };
+            setUser(loggedInUser);
+
+            localStorage.setItem('vulnlocator_user', JSON.stringify(loggedInUser));
+            localStorage.setItem('vulnlocator_token', data.token);
+
+            notify('Signed in successfully', 'success');
+            return loggedInUser;
+        } catch (err) {
+            console.error('Login error:', err);
+            notify(`Login failed: ${err.message}`, 'error');
+            throw err;
+        }
+
     };
 
 
     const logout = () => {
+        // Previous logout implementation
+        // setUser(null);
+        // try { localStorage.removeItem('vulnlocator_user'); } catch (e) { }
+
+        // Current implementation
         setUser(null);
-        try { localStorage.removeItem('vulnlocator_user'); } catch (e) { }
+        try {
+            localStorage.removeItem('vulnlocator_user');
+            localStorage.removeItem('vulnlocator_token');
+        } catch (e) { }
+        notify('Logged out', 'info');
     };
 
     return (
