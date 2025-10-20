@@ -16,13 +16,12 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import HistoryPage from './pages/HistoryPage';
-import KnowledgePage from './pages/KnowledgePage';
-import ProfilePage from './pages/ProfilePage';
-import LogoutPage from './pages/LogoutPage';
-import SettingsDialog from './components/SettingsDialog';
-//import DatasetPage from './pages/DatasetPage';
-import { useAuth } from './context/AuthContext';
+import HistoryPage from './HistoryPage';
+import KnowledgePage from './KnowledgePage';
+import ProfilePage from './ProfilePage';
+import LogoutPage from './LogoutPage';
+import SettingsDialog from './SettingsDialog';
+import { useAuth } from './AuthContext';
 
 function LogoText({ small, size }) {
   // Match LoginOverlay: yellow (#d19d00) bg, dark text, Georgia, bold, rounded, centered
@@ -142,42 +141,106 @@ function App() {
     if (/\{[\s\S]*\}/.test(code)) score++;
     return score >= 2;
   }
+  // Previous version of handleChatSubmit
+  // const handleChatSubmit = (content, force = false) => {
+  //   const payload = typeof content === 'string' ? content : chatInput;
+  //   if (!payload || payload.trim() === '') {
+  //     notify && notify('No content to analyse', 'warning');
+  //     return;
+  //   }
+  //   // Only check if not forced
+  //   if (!force && !isLikelyCOrCpp(payload)) {
+  //     setPendingSubmission(payload);
+  //     setLanguageWarningOpen(true);
+  //     return;
+  //   }
+  //   setLoading(true);
+  //   notify && notify('Analysis started', 'info');
+  //   // placeholder analysis simulation
+  //   // setTimeout(() => {
+  //   //   setLoading(false);
+  //   //   notify && notify('Analysis complete (placeholder)', 'success');
+  //   //   // set a placeholder analysis result with per-line severities
+  //   //   const lines = payload.split('\n');
+  //   //   // simple heuristic: mark lines containing 'eval' as Medium, 'select' or 'sql' as High
+  //   //   const lineResults = lines.map((ln, idx) => {
+  //   //     const l = ln.toLowerCase();
+  //   //     if (l.includes('eval(') || l.includes('eval ')) return { line: idx + 1, severity: 'Medium' };
+  //   //     if (l.includes('select') || l.includes('sql') || l.includes("-- sql") || l.includes('exec(')) return { line: idx + 1, severity: 'High' };
+  //   //     return { line: idx + 1, severity: 'None' };
+  //   //   });
 
-  const handleChatSubmit = (content, force = false) => {
+  //   //   const issues = lineResults.filter(r => r.severity !== 'None').map((r, i) => ({ id: i + 1, desc: `Potential issue on line ${r.line}`, severity: r.severity, line: r.line }));
+
+  //   //   setAnalysisResult({ summary: 'Placeholder analysis result', code: payload, lineResults, issues });
+  //   //   // clear the input after submission so user isn't confused
+  //   //   setChatInput('');
+  //   // }, 1500);
+
+  // };
+
+  // Current version of handleChatSubmit with FastAPI integration
+  const handleChatSubmit = async (content, force = false) => {
     const payload = typeof content === 'string' ? content : chatInput;
     if (!payload || payload.trim() === '') {
       notify && notify('No content to analyse', 'warning');
       return;
     }
-    // Only check if not forced
     if (!force && !isLikelyCOrCpp(payload)) {
       setPendingSubmission(payload);
       setLanguageWarningOpen(true);
       return;
     }
+
     setLoading(true);
     notify && notify('Analysis started', 'info');
-    // placeholder analysis simulation
-    setTimeout(() => {
-      setLoading(false);
-      notify && notify('Analysis complete (placeholder)', 'success');
-      // set a placeholder analysis result with per-line severities
-      const lines = payload.split('\n');
-      // simple heuristic: mark lines containing 'eval' as Medium, 'select' or 'sql' as High
-      const lineResults = lines.map((ln, idx) => {
-        const l = ln.toLowerCase();
-        if (l.includes('eval(') || l.includes('eval ')) return { line: idx + 1, severity: 'Medium' };
-        if (l.includes('select') || l.includes('sql') || l.includes("-- sql") || l.includes('exec(')) return { line: idx + 1, severity: 'High' };
-        return { line: idx + 1, severity: 'None' };
+
+    try {
+      //  request code analysis to FastAPI backend
+      const token = localStorage.getItem('vulnlocator_token');
+      const res = await fetch('http://localhost:8000/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: payload,
+          token: token || null,  // if logged in, send token for user-specific analysis history
+        }),
       });
 
-      const issues = lineResults.filter(r => r.severity !== 'None').map((r, i) => ({ id: i + 1, desc: `Potential issue on line ${r.line}`, severity: r.severity, line: r.line }));
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || 'Analysis failed');
+      }
 
-      setAnalysisResult({ summary: 'Placeholder analysis result', code: payload, lineResults, issues });
-      // clear the input after submission so user isn't confused
+      //  FastAPI response: { summary, issues }
+      const data = await res.json();
+      const lines = payload.split('\n');
+
+      // map issues to per-line results
+      const lineResults = lines.map((ln, idx) => {
+        const issue = data.issues.find(i => i.line === idx + 1);
+        const severity = issue ? issue.severity : 'None';
+        return { line: idx + 1, severity };
+      });
+
+      setAnalysisResult({
+        summary: data.summary,
+        code: payload,
+        lineResults,
+        issues: data.issues,
+      });
+
       setChatInput('');
-    }, 1500);
+      notify && notify('Analysis complete', 'success');
+    } catch (err) {
+      notify && notify(err.message || 'Failed to analyse code', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
   {/* Language warning dialog */ }
   <Dialog open={languageWarningOpen} onClose={() => setLanguageWarningOpen(false)}>
     <DialogTitle>Language not recommended</DialogTitle>
