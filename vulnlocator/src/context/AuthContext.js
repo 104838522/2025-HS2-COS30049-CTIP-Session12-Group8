@@ -1,3 +1,4 @@
+// Moved from src/AuthContext.js
 import React, { createContext, useContext, useState } from 'react';
 
 // Simple AuthContext for prototype purposes

@@ -1,6 +1,7 @@
+// Moved from src/ProfilePage.js
 import React from 'react';
 import { Container, Typography, Box, Card, CardContent, Avatar } from '@mui/material';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfilePage() {
     const { user } = useAuth();

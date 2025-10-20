@@ -16,12 +16,12 @@ import {
   Settings as SettingsIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import HistoryPage from './HistoryPage';
-import KnowledgePage from './KnowledgePage';
-import ProfilePage from './ProfilePage';
-import LogoutPage from './LogoutPage';
-import SettingsDialog from './SettingsDialog';
-import { useAuth } from './AuthContext';
+import HistoryPage from './pages/HistoryPage';
+import KnowledgePage from './pages/KnowledgePage';
+import ProfilePage from './pages/ProfilePage';
+import LogoutPage from './pages/LogoutPage';
+import SettingsDialog from './components/SettingsDialog';
+import { useAuth } from './context/AuthContext';
 
 function LogoText({ small, size }) {
   // Match LoginOverlay: yellow (#d19d00) bg, dark text, Georgia, bold, rounded, centered

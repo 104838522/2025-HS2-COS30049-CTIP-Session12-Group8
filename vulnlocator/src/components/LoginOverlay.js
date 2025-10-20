@@ -1,9 +1,10 @@
+// Moved from src/LoginOverlay.js
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, Stack, Divider, Snackbar, Alert, CircularProgress } from '@mui/material';
 import EmailIcon from '@mui/icons-material/Email';
 
 
-import { useAuth } from './AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '@mui/material/styles';
 
 export default function LoginOverlay() {

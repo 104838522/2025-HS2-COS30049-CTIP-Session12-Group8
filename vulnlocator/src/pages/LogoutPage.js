@@ -1,7 +1,8 @@
+// Moved from src/LogoutPage.js
 import React, { useEffect } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function LogoutPage() {
     const navigate = useNavigate();
