@@ -21,6 +21,7 @@ import KnowledgePage from './pages/KnowledgePage';
 import ProfilePage from './pages/ProfilePage';
 import LogoutPage from './pages/LogoutPage';
 import SettingsDialog from './components/SettingsDialog';
+//import DatasetPage from './pages/DatasetPage';
 import { useAuth } from './context/AuthContext';
 
 function LogoText({ small, size }) {
@@ -445,6 +446,7 @@ function App() {
         <Route path="/knowledge" element={<KnowledgePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/logout" element={<LogoutPage />} />
+        {/*<Route path="/dataset" element={<DatasetPage />} />*/}
       </Routes>
 
       <Box component="footer" sx={{ bgcolor: darkMode ? 'grey.800' : 'background.paper', py: 3, mt: 'auto' }}>
