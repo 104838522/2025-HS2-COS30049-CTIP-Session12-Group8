@@ -3,7 +3,7 @@ import { Box, Paper, Typography, TextField, Button, Stack, Divider, Snackbar, Al
 import EmailIcon from '@mui/icons-material/Email';
 
 
-import { useAuth } from './AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '@mui/material/styles';
 
 export default function LoginOverlay() {
@@ -131,36 +131,36 @@ export default function LoginOverlay() {
 
         // Current signup implementation
         try {
-        // 1. request signup API
-        const res = await fetch('http://localhost:8000/api/auth/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, email, password }),
-        });
+            // 1. request signup API
+            const res = await fetch('http://localhost:8000/api/auth/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password }),
+            });
 
-        // 2. check response
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.detail || 'Signup failed');
+            // 2. check response
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.detail || 'Signup failed');
+            }
+
+            // 3. handle success
+            setSignupSuccess(true);
+            notify('Account created! Please sign in.', 'success');
+            setShowSignup(false);
+
+            // initially clear signup fields
+            setSignupName('');
+            setSignupEmail('');
+            setSignupPassword('');
+            setSignupConfirm('');
+        } catch (err) {
+            // 4. Handle errors
+            setSignupError(err.message || 'Signup failed');
+        } finally {
+            // 5. end loading state
+            setSignupLoading(false);
         }
-
-        // 3. handle success
-        setSignupSuccess(true);
-        notify('Account created! Please sign in.', 'success');
-        setShowSignup(false);
-
-        // initially clear signup fields
-        setSignupName('');
-        setSignupEmail('');
-        setSignupPassword('');
-        setSignupConfirm('');
-    } catch (err) {
-        // 4. Handle errors
-        setSignupError(err.message || 'Signup failed');
-    } finally {
-        // 5. end loading state
-        setSignupLoading(false);
-    }
     };
 
     return (
