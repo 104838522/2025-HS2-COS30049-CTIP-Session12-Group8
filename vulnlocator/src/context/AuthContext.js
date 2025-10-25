@@ -1,110 +1,154 @@
-import React, { createContext, useContext, useState } from 'react';
+// AuthContext.js (Business Logic Layer)
+// Role: Provides authentication context and methods for login, signup, and logout.
 
-// Simple AuthContext for prototype purposes
+import React, { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-    // initialize from localStorage if present
-    const [user, setUser] = useState(() => {
-        try {
-            const raw = localStorage.getItem('vulnlocator_user');
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) {
-            return null;
+  // Read initial user data from LocalStorage
+  const [user, setUser] = useState(() => {
+    try {
+      const raw = localStorage.getItem("vulnlocator_user");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Manage token state separately (used by HistoryPage)
+  const [token, setToken] = useState(() => {
+    try {
+      return localStorage.getItem("vulnlocator_token") || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [message, setMessage] = useState(null);
+
+  // Notification helper
+  const notify = (text, severity = "info") => {
+    setMessage({ text, severity });
+    setTimeout(() => setMessage(null), 4000);
+  };
+
+  // Login with email and password
+  const loginWithEmail = async (email, password) => {
+    if (!email || !password) throw new Error("Email and password required");
+
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/api/auth/login", {
+        email,
+        password,
+      });
+
+      const data = res.data; // Expected: { message, token, user }
+
+      if (!data?.token || !data?.user) throw new Error("Invalid response from server.");
+
+      const loggedInUser = { ...data.user, token: data.token };
+      setUser(loggedInUser);
+      setToken(data.token);
+
+      // Save user and token to LocalStorage
+      localStorage.setItem("vulnlocator_user", JSON.stringify(loggedInUser));
+      localStorage.setItem("vulnlocator_token", data.token);
+
+      notify("Signed in successfully", "success");
+      return loggedInUser;
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          const detail = err.response.data?.detail || "Login failed.";
+          notify(`Server error: ${detail}`, "error");
+        } else if (err.request) {
+          notify("No response from server. Please try again later.", "error");
+        } else {
+          notify(`Request error: ${err.message}`, "error");
         }
-    });
-    const [message, setMessage] = useState(null);
+      } else {
+        notify(`Login failed: ${err.message}`, "error");
+      }
+      console.error("[Login Error]", err);
+      throw err;
+    }
+  };
 
-    const notify = (text, severity = 'info') => {
-        setMessage({ text, severity });
-        // clear after a short while; components can also clear when they read it
-        setTimeout(() => setMessage(null), 4000);
-    };
+  // Signup with name, email, and password
+  const signupWithEmail = async (name, email, password) => {
+    try {
+      const res = await axios.post("http://127.0.0.1:8000/api/auth/signup", {
+        name,
+        email,
+        password,
+      });
 
-    
-    const loginWithEmail = async ({ email, password }) => {
-        //Previous loginWithEmail implementation
-        // // In a real app you'd POST to an auth endpoint. Here we accept any non-empty email.
-        // if (!email) throw new Error('Email required');
-        // // return a placeholder user object
-        // const placeholderUser = { id: 'user-1', name: 'Placeholder User', email };
-        // setUser(placeholderUser);
-        // try { localStorage.setItem('vulnlocator_user', JSON.stringify(placeholderUser)); } catch (e) { }
-        // notify('Signed in successfully', 'success');
+      const data = res.data;
+      if (!data?.user?.email) throw new Error("Invalid response from server.");
 
-        // // Example FastAPI call (commented out - replace URL and remove comments to enable):
-        // // try {
-        // //   const res = await fetch('http://localhost:8000/api/auth/login', {
-        // //     method: 'POST',
-        // //     headers: { 'Content-Type': 'application/json' },
-        // //     body: JSON.stringify({ email, password }),
-        // //   });
-        // //   if (!res.ok) throw new Error('Login failed');
-        // //   const data = await res.json();
-        // //   // set auth token, user, etc. from data
-        // // }
-
-        // Current implementation with FastAPI backend
-        if (!email || !password) throw new Error('Email and password required');
-
-        try {
-            const res = await fetch('http://localhost:8000/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.detail || 'Login failed');
-            }
-
-            const data = await res.json();
-
-            // FastAPI response structure: { message, token, user }
-            const loggedInUser = {
-                ...data.user,
-                token: data.token,
-            };
-            setUser(loggedInUser);
-
-            localStorage.setItem('vulnlocator_user', JSON.stringify(loggedInUser));
-            localStorage.setItem('vulnlocator_token', data.token);
-
-            notify('Signed in successfully', 'success');
-            return loggedInUser;
-        } catch (err) {
-            console.error('Login error:', err);
-            notify(`Login failed: ${err.message}`, 'error');
-            throw err;
+      notify("Account created successfully", "success");
+      return data.user;
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        if (err.response) {
+          const detail = err.response.data?.detail || "Signup failed.";
+          notify(`Server error: ${detail}`, "error");
+        } else if (err.request) {
+          notify("No response from server. Please try again later.", "error");
+        } else {
+          notify(`Request error: ${err.message}`, "error");
         }
+      } else {
+        notify(`Signup failed: ${err.message}`, "error");
+      }
+      console.error("[Signup Error]", err);
+      throw err;
+    }
+  };
 
-    };
+  // Logout and clear user data
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("vulnlocator_user");
+    localStorage.removeItem("vulnlocator_token");
+    notify("Logged out", "info");
+  };
 
+  // Restore user and token from LocalStorage on page reload
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("vulnlocator_user");
+      const storedToken = localStorage.getItem("vulnlocator_token");
+      if (storedUser) setUser(JSON.parse(storedUser));
+      if (storedToken) setToken(storedToken);
+    } catch (err) {
+      console.error("Failed to restore user/token from storage:", err);
+    }
+  }, []);
 
-    const logout = () => {
-        // Previous logout implementation
-        // setUser(null);
-        // try { localStorage.removeItem('vulnlocator_user'); } catch (e) { }
-
-        // Current implementation
-        setUser(null);
-        try {
-            localStorage.removeItem('vulnlocator_user');
-            localStorage.removeItem('vulnlocator_token');
-        } catch (e) { }
-        notify('Logged out', 'info');
-    };
-
-    return (
-        <AuthContext.Provider value={{ user, loginWithEmail, logout, message, notify }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  // Provide context to child components
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loginWithEmail,
+        signupWithEmail,
+        logout,
+        message,
+        notify,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-    return useContext(AuthContext);
+  return useContext(AuthContext);
 }
 
 export default AuthContext;
