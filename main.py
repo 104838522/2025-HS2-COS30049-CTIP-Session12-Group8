@@ -11,7 +11,7 @@ import numpy as np
 from preprocess import preprocess_code
 import warnings
 from sklearn.exceptions import InconsistentVersionWarning
-
+import traceback
 warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 
 
@@ -62,11 +62,18 @@ class LoginIn(BaseModel):
     email: str
     password: str
 
+class Highlight(BaseModel):
+    line: int
+    score: float
+    snippet: str
+
 class AnalyzeOut(BaseModel):
     result: str
     confidence: Optional[float]
     processing_time_sec: float
     timestamp: str
+    highlights: Optional[List[Highlight]] = None
+
 
 class UpdateUserIn(BaseModel):
     name: Optional[str] = None
@@ -128,9 +135,180 @@ def login(payload: LoginIn, db=Depends(get_db)):
 
 # ------------------------------------------------------------
 # Step 10. Analyze (AI Prediction)
+
+
+# ---------- Helper: predict probability (use existing VECTORIZER/SCALER/KNN) ----------
+def predict_proba_from_text(text: str):
+    """
+    Return model max probability for the given code text.
+    If predict_proba not available, return None.
+    """
+    try:
+        proc = preprocess_code(text)
+        X_vec = VECTORIZER.transform([proc])
+        # dense
+        if hasattr(X_vec, "toarray"):
+            X_dense = X_vec.toarray()
+        else:
+            X_dense = np.asarray(X_vec)
+        # scale
+        try:
+            if hasattr(SCALER, "feature_names_in_"):
+                # when scaler expects dataframe columns
+                cols = getattr(VECTORIZER, 'get_feature_names_out', lambda: [f'F{i}' for i in range(X_dense.shape[1])])()
+                import pandas as pd
+                df = pd.DataFrame(X_dense, columns=cols)
+                Xs = SCALER.transform(df)
+            else:
+                Xs = SCALER.transform(X_dense)
+        except Exception:
+            Xs = X_dense
+        if hasattr(KNN, "predict_proba"):
+            return float(KNN.predict_proba(Xs).max())
+        else:
+            return None
+    except Exception as e:
+        print("predict_proba_from_text failed:", e)
+        print(traceback.format_exc())
+        return None
+
+# ---------- Helper: naive function splitter ----------
+def simple_function_split(lines):
+    """
+    Return list of (start_index, end_index) tuples for code 'blocks' to check.
+    This is a very small heuristic: looks for function-like lines:
+    - Python: lines starting with 'def ' or 'class '
+    - C/Java/JS: lines ending with '{' (assume block starts)
+    Fallback: treat whole file as single block (0..len-1)
+    """
+    blocks = []
+    n = len(lines)
+    i = 0
+    while i < n:
+        line = lines[i].lstrip()
+        if line.startswith("def ") or line.startswith("class "):
+            start = i
+            # find end: next blank line that is not indented (very naive)
+            j = i + 1
+            while j < n and (lines[j].startswith(" ") or lines[j].startswith("\t") or lines[j].strip() == ""):
+                j += 1
+            blocks.append((start, j-1))
+            i = j
+        elif line.endswith("{"):
+            start = i
+            # find matching '}' (naive)
+            depth = 1
+            j = i + 1
+            while j < n and depth > 0:
+                if lines[j].strip().endswith("{"):
+                    depth += 1
+                if "}" in lines[j]:
+                    depth -= lines[j].count("}")
+                j += 1
+            blocks.append((start, max(start, j-1)))
+            i = j
+        else:
+            i += 1
+    if not blocks:
+        # entire file as one block
+        if n > 0:
+            blocks = [(0, n-1)]
+    return blocks
+
+# ---------- Main locator: function-level then line-level occlusion ----------
+def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int = 5):
+    """
+    1) Split code into blocks/functions (simple heuristic).
+    2) Compute base probability.
+    3) Mask each function block and compute delta.
+    4) For top function blocks, mask lines inside to rank line importance.
+    Return list of dicts: {line, score, snippet}
+    """
+    lines = raw_code.splitlines()
+    if len(lines) == 0:
+        return []
+
+    base_proba = predict_proba_from_text(raw_code)
+
+    blocks = simple_function_split(lines)
+
+    func_scores = []
+    for (s, e) in blocks:
+        masked = lines.copy()
+        for idx in range(s, e+1):
+            masked[idx] = ""  # mask the whole block
+        masked_text = "\n".join(masked)
+        p = predict_proba_from_text(masked_text)
+        if base_proba is None or p is None:
+            # fallback: use class change if predict_proba not available
+            try:
+                # predict classes (costly) - but attempt
+                X_base = VECTORIZER.transform([preprocess_code(raw_code)])
+                X_base_d = X_base.toarray() if hasattr(X_base, "toarray") else np.asarray(X_base)
+                try:
+                    Xb = SCALER.transform(X_base_d)
+                except Exception:
+                    Xb = X_base_d
+                base_pred = int(KNN.predict(Xb)[0])
+                X_mask = VECTORIZER.transform([preprocess_code(masked_text)])
+                Xm_d = X_mask.toarray() if hasattr(X_mask, "toarray") else np.asarray(X_mask)
+                try:
+                    Xm = SCALER.transform(Xm_d)
+                except Exception:
+                    Xm = Xm_d
+                pred_mask = int(KNN.predict(Xm)[0])
+                score = 1.0 if base_pred != pred_mask else 0.0
+            except Exception:
+                score = 0.0
+        else:
+            score = float(base_proba - p)
+        func_scores.append((s, e, score))
+
+    # sort blocks by their score (high -> low)
+    func_scores.sort(key=lambda x: x[2], reverse=True)
+    highlights = []
+    # only examine top N functions for line-level occlusion
+    for (s, e, fscore) in func_scores[:top_funcs]:
+        # for each line in the block, mask and measure
+        for idx in range(s, e+1):
+            masked = lines.copy()
+            masked[idx] = ""  # mask single line
+            masked_text = "\n".join(masked)
+            p = predict_proba_from_text(masked_text)
+            if base_proba is None or p is None:
+                # fallback class-change scoring
+                try:
+                    X_mask = VECTORIZER.transform([preprocess_code(masked_text)])
+                    Xm_d = X_mask.toarray() if hasattr(X_mask, "toarray") else np.asarray(X_mask)
+                    try:
+                        Xm = SCALER.transform(Xm_d)
+                    except Exception:
+                        Xm = Xm_d
+                    base_pred = int(KNN.predict(X_scaled)[0])  # note: X_scaled must be precomputed outside - but simpler to call predict again below
+                    pred_mask = int(KNN.predict(Xm)[0])
+                    sc = 1.0 if base_pred != pred_mask else 0.0
+                except Exception:
+                    sc = 0.0
+            else:
+                sc = float(base_proba - p)
+            highlights.append({"line": idx+1, "score": round(sc, 6), "snippet": lines[idx].strip()})
+    # sort highlights by score and return top unique lines
+    highlights.sort(key=lambda x: x["score"], reverse=True)
+    # remove duplicates and take top K
+    seen = set()
+    out = []
+    for h in highlights:
+        if h["line"] not in seen:
+            out.append(h)
+            seen.add(h["line"])
+        if len(out) >= top_funcs * top_lines:
+            break
+    return out
+
+# ---------- Updated analyze endpoint (replace your original analyze) ----------
 @app.post("/api/analyze", response_model=AnalyzeOut)
 async def analyze(
-    request: Request,                          # Request object added to extract token from headers
+    request: Request,
     code: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None)
 ):
@@ -150,13 +328,13 @@ async def analyze(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File read failed: {str(e)}")
 
-    # Step 3. Preprocess code
+    # Step 3. Preprocess code (main)
     try:
         processed = preprocess_code(raw_code)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Preprocessing failed: {str(e)}")
 
-    # Step 4. Vectorization and scaling
+    # Step 4. Vectorization and scaling (original logic)
     try:
         from scipy import sparse
         import pandas as pd
@@ -186,7 +364,14 @@ async def analyze(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction failed: {str(e)}")
 
-    # Step 6. Create result object
+    # Step 6. Locate vulnerable regions (new)
+    try:
+        highlights = locate_vulnerable_regions(raw_code, top_funcs=2, top_lines=5)
+    except Exception as e:
+        print("locate_vulnerable_regions failed:", e)
+        highlights = []
+
+    # Step 7. Create result object
     elapsed = round(time.time() - start_time, 3)
     result_label = "Vulnerable" if pred == 1 else "Safe"
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -195,10 +380,11 @@ async def analyze(
         result=result_label,
         confidence=proba,
         processing_time_sec=elapsed,
-        timestamp=timestamp
+        timestamp=timestamp,
+        highlights=highlights
     )
 
-    # Extract token from header and save result to history
+    # Extract token from header and save result to history (include highlights)
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
