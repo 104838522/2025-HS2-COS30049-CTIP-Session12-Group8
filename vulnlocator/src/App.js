@@ -142,7 +142,6 @@ function App() {
         },
       });
 
-
       const data = res.data || {};
       setAnalysisResult({
         code: payload,
@@ -150,6 +149,7 @@ function App() {
         confidence: data.confidence ?? "N/A",
         time: data.processing_time_sec ?? null,
         timestamp: data.timestamp ?? "",
+        highlights: data.highlights ?? [],   //  highlights
       });
 
       notify && notify("Analysis complete", "success");
@@ -164,124 +164,123 @@ function App() {
     }
   };
 
-// ===== Drawer Content =====
-const drawerContent = (
-  <Box
-    sx={{
-      width: 250,
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      bgcolor: darkMode ? "#121212" : "background.paper",
-      color: darkMode ? "#f5f5f5" : "text.primary", 
-    }}
-    role="presentation"
-    onClick={toggleDrawer(false)}
-    onKeyDown={toggleDrawer(false)}
-  >
-    <List>
-      {[
-        { text: "Detect a vulnerability", icon: <MenuIcon />, link: "/" },
-        { text: "Past analyses", icon: <HistoryIcon />, link: "/history" },
-        { text: "Knowledge base", icon: <InfoIcon />, link: "/knowledge" },
-      ].map((item) => {
-        const selected = location.pathname === item.link;
-        return (
-          <ListItem
-            button
-            key={item.text}
-            component={Link}
-            to={item.link}
-            selected={selected}
-            sx={{
-              bgcolor: selected
-                ? (darkMode ? "#333333" : "rgba(0,0,0,0.08)")
-                : "transparent",
-              "&:hover": {
-                bgcolor: darkMode ? "#2a2a2a" : "rgba(0,0,0,0.04)",
-              },
-            }}
-          >
-            <ListItemIcon
+  // ===== Drawer Content =====
+  const drawerContent = (
+    <Box
+      sx={{
+        width: 250,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: darkMode ? "#121212" : "background.paper",
+        color: darkMode ? "#f5f5f5" : "text.primary", 
+      }}
+      role="presentation"
+      onClick={toggleDrawer(false)}
+      onKeyDown={toggleDrawer(false)}
+    >
+      <List>
+        {[
+          { text: "Detect a vulnerability", icon: <MenuIcon />, link: "/" },
+          { text: "Past analyses", icon: <HistoryIcon />, link: "/history" },
+          { text: "Knowledge base", icon: <InfoIcon />, link: "/knowledge" },
+        ].map((item) => {
+          const selected = location.pathname === item.link;
+          return (
+            <ListItem
+              button
+              key={item.text}
+              component={Link}
+              to={item.link}
+              selected={selected}
               sx={{
-                color: darkMode
-                  ? (selected ? "#ffd700" : "#e0e0e0") // selected: gold, unselected: light gray
-                  : (selected ? "primary.main" : "inherit"),
-              }}
-            >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.text}
-              primaryTypographyProps={{
-                sx: {
-                  fontWeight: selected ? 600 : 400,
-                  color: darkMode
-                    ? (selected ? "#ffd700" : "#ffffff")
-                    : (selected ? "primary.main" : "text.primary"),
+                bgcolor: selected
+                  ? (darkMode ? "#333333" : "rgba(0,0,0,0.08)")
+                  : "transparent",
+                "&:hover": {
+                  bgcolor: darkMode ? "#2a2a2a" : "rgba(0,0,0,0.04)",
                 },
               }}
-            />
-          </ListItem>
-        );
-      })}
-    </List>
-
-    <Divider sx={{ borderColor: darkMode ? "#444" : "divider" }} />
-
-    <Box sx={{ flexGrow: 1 }} />
-
-    <List>
-      {[
-        { text: "Your profile", icon: <AccountCircleIcon />, link: "/profile" },
-        { text: "Settings", icon: <SettingsIcon />, action: () => setSettingsOpen(true) },
-        { text: "Log out", icon: <LogoutIcon />, link: "/logout" },
-      ].map((item) => {
-        const selected = location.pathname === item.link;
-        return (
-          <ListItem
-            button
-            key={item.text}
-            component={item.link ? Link : "button"}
-            to={item.link}
-            onClick={item.action}
-            selected={selected}
-            sx={{
-              bgcolor: selected
-                ? (darkMode ? "#333333" : "rgba(0,0,0,0.08)")
-                : "transparent",
-              "&:hover": {
-                bgcolor: darkMode ? "#2a2a2a" : "rgba(0,0,0,0.04)",
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                color: darkMode
-                  ? (selected ? "#ffd700" : "#e0e0e0")
-                  : (selected ? "primary.main" : "inherit"),
-              }}
             >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.text}
-              primaryTypographyProps={{
-                sx: {
-                  fontWeight: selected ? 600 : 400,
+              <ListItemIcon
+                sx={{
                   color: darkMode
-                    ? (selected ? "#ffd700" : "#ffffff")
-                    : (selected ? "primary.main" : "text.primary"),
+                    ? (selected ? "#ffd700" : "#e0e0e0")
+                    : (selected ? "primary.main" : "inherit"),
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                  sx: {
+                    fontWeight: selected ? 600 : 400,
+                    color: darkMode
+                      ? (selected ? "#ffd700" : "#ffffff")
+                      : (selected ? "primary.main" : "text.primary"),
+                  },
+                }}
+              />
+            </ListItem>
+          );
+        })}
+      </List>
+
+      <Divider sx={{ borderColor: darkMode ? "#444" : "divider" }} />
+
+      <Box sx={{ flexGrow: 1 }} />
+
+      <List>
+        {[
+          { text: "Your profile", icon: <AccountCircleIcon />, link: "/profile" },
+          { text: "Settings", icon: <SettingsIcon />, action: () => setSettingsOpen(true) },
+          { text: "Log out", icon: <LogoutIcon />, link: "/logout" },
+        ].map((item) => {
+          const selected = location.pathname === item.link;
+          return (
+            <ListItem
+              button
+              key={item.text}
+              component={item.link ? Link : "button"}
+              to={item.link}
+              onClick={item.action}
+              selected={selected}
+              sx={{
+                bgcolor: selected
+                  ? (darkMode ? "#333333" : "rgba(0,0,0,0.08)")
+                  : "transparent",
+                "&:hover": {
+                  bgcolor: darkMode ? "#2a2a2a" : "rgba(0,0,0,0.04)",
                 },
               }}
-            />
-          </ListItem>
-        );
-      })}
-    </List>
-  </Box>
-);
-
+            >
+              <ListItemIcon
+                sx={{
+                  color: darkMode
+                    ? (selected ? "#ffd700" : "#e0e0e0")
+                    : (selected ? "primary.main" : "inherit"),
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{
+                  sx: {
+                    fontWeight: selected ? 600 : 400,
+                    color: darkMode
+                      ? (selected ? "#ffd700" : "#ffffff")
+                      : (selected ? "primary.main" : "text.primary"),
+                  },
+                }}
+              />
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
+  );
 
   return (
     <Box
@@ -293,7 +292,6 @@ const drawerContent = (
         color: darkMode ? "common.white" : "common.black",
       }}
     >
-      {/* ===== AppBar ===== */}
       <AppBar position="static" color="primary">
         <Toolbar>
           <IconButton edge="start" color="inherit" onClick={toggleDrawer(true)}>
@@ -305,7 +303,6 @@ const drawerContent = (
         </Toolbar>
       </AppBar>
 
-      {/* ===== Drawer ===== */}
       <Drawer anchor="left" open={drawerOpen} onClose={toggleDrawer(false)}>
         {drawerContent}
       </Drawer>
@@ -371,9 +368,47 @@ const drawerContent = (
                       <Typography variant="body2" sx={{ mb: 1 }}>
                         Confidence: {analysisResult.confidence}
                       </Typography>
-                      <Typography variant="body2">
+                      <Typography variant="body2" sx={{ mb: 2 }}>
                         Processing time: {analysisResult.time}s
                       </Typography>
+
+                      {/* added for highlite vulnerable code block */}
+                      {analysisResult.highlights && analysisResult.highlights.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            🔍 Vulnerable Lines:
+                          </Typography>
+                          <Box
+                            component="ul"
+                            sx={{
+                              listStyle: "none",
+                              pl: 0,
+                              mt: 1,
+                              fontFamily: "monospace",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            {analysisResult.highlights.map((h, i) => (
+                              <li
+                                key={i}
+                                style={{
+                                  backgroundColor:
+                                    h.score > 0.1
+                                      ? "rgba(255, 0, 0, 0.1)" // strong highlight for high score
+                                      : "rgba(255, 255, 0, 0.1)", // mild highlight for low score
+                                  marginBottom: "6px",
+                                  padding: "6px",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                <strong>Line {h.line}</strong> — score {h.score.toFixed(3)}
+                                <br />
+                                <code>{h.snippet}</code>
+                              </li>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
