@@ -1,5 +1,5 @@
 // AuthContext.js (Business Logic Layer)
-// Role: Provides authentication context and methods for login, signup, and logout.
+// Role: Provides authentication context and methods for login, signup, logout, and state update.
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
     }
   });
 
-  // Manage token state separately (used by HistoryPage)
+  // Manage token state separately (used by authenticated API calls)
   const [token, setToken] = useState(() => {
     try {
       return localStorage.getItem("vulnlocator_token") || null;
@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  // Login with email and password
+  //  Login with email and password
   const loginWithEmail = async (email, password) => {
     if (!email || !password) throw new Error("Email and password required");
 
@@ -45,14 +45,14 @@ export function AuthProvider({ children }) {
       });
 
       const data = res.data; // Expected: { message, token, user }
-
-      if (!data?.token || !data?.user) throw new Error("Invalid response from server.");
+      if (!data?.token || !data?.user)
+        throw new Error("Invalid response from server.");
 
       const loggedInUser = { ...data.user, token: data.token };
       setUser(loggedInUser);
       setToken(data.token);
 
-      // Save user and token to LocalStorage
+      // Save to LocalStorage
       localStorage.setItem("vulnlocator_user", JSON.stringify(loggedInUser));
       localStorage.setItem("vulnlocator_token", data.token);
 
@@ -76,7 +76,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Signup with name, email, and password
+  //  Signup with name, email, and password
   const signupWithEmail = async (name, email, password) => {
     try {
       const res = await axios.post("http://127.0.0.1:8000/api/auth/signup", {
@@ -108,7 +108,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Logout and clear user data
+  //  Logout and clear user data
   const logout = () => {
     setUser(null);
     setToken(null);
@@ -117,7 +117,7 @@ export function AuthProvider({ children }) {
     notify("Logged out", "info");
   };
 
-  // Restore user and token from LocalStorage on page reload
+  //  Restore user and token from LocalStorage on reload
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("vulnlocator_user");
@@ -129,12 +129,21 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Provide context to child components
+  //  Save user updates to LocalStorage whenever user state changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("vulnlocator_user", JSON.stringify(user));
+    }
+  }, [user]);
+
+  //  Provide context values
   return (
     <AuthContext.Provider
       value={{
         user,
         token,
+        setUser,       //  added for immediate profile updates
+        setToken,      //  allows refreshing token later
         loginWithEmail,
         signupWithEmail,
         logout,
