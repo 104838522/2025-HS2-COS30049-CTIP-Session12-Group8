@@ -268,6 +268,7 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
     func_scores.sort(key=lambda x: x[2], reverse=True)
     highlights = []
     # only examine top N functions for line-level occlusion
+    MIN_LINE_SCORE = 0.05
     for (s, e, fscore) in func_scores[:top_funcs]:
         # for each line in the block, mask and measure
         for idx in range(s, e+1):
@@ -290,8 +291,17 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
                 except Exception:
                     sc = 0.0
             else:
-                sc = float(base_proba - p)
-            highlights.append({"line": idx+1, "score": round(sc, 6), "snippet": lines[idx].strip()})
+                sc = float(max(base_proba - p, 0.0))
+
+            line_text = lines[idx].strip()
+            if not line_text:
+                continue
+            if line_text in {"{", "}"}:
+                continue
+
+            score_val = round(sc, 6)
+            if sc >= MIN_LINE_SCORE:
+                highlights.append({"line": idx+1, "score": score_val, "snippet": line_text})
     # sort highlights by score and return top unique lines
     highlights.sort(key=lambda x: x["score"], reverse=True)
     # remove duplicates and take top K

@@ -130,8 +130,8 @@ export default function HistoryPage() {
                   }}
                 >
                   {entry.result === "Vulnerable"
-                    ? "⚠️ Vulnerable code detected"
-                    : "✅ No vulnerability detected"}
+                    ? "Potentially vulnerable code detected"
+                    : "No vulnerability detected"}
                 </Typography>
 
                 {/* Details */}

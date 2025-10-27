@@ -90,6 +90,13 @@ function App() {
   const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
 
+  const formatConfidence = (value) => {
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+    return "N/A";
+  };
+
   // ===== Drawer Toggle =====
   const toggleDrawer = (open) => (event) => {
     if (event.type === "keydown" && (event.key === "Tab" || event.key === "Shift")) return;
@@ -138,15 +145,19 @@ function App() {
       const res = await axios.post("http://localhost:8000/api/analyze", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`, 
+          "Authorization": `Bearer ${token}`,
         },
       });
 
       const data = res.data || {};
+      const confidenceValue =
+        typeof data.confidence === "number" && !Number.isNaN(data.confidence)
+          ? data.confidence
+          : null;
       setAnalysisResult({
         code: payload,
         result: data.result ?? "Unknown",
-        confidence: data.confidence ?? "N/A",
+        confidence: confidenceValue,
         time: data.processing_time_sec ?? null,
         timestamp: data.timestamp ?? "",
         highlights: data.highlights ?? [],   //  highlights
@@ -173,7 +184,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         bgcolor: darkMode ? "#121212" : "background.paper",
-        color: darkMode ? "#f5f5f5" : "text.primary", 
+        color: darkMode ? "#f5f5f5" : "text.primary",
       }}
       role="presentation"
       onClick={toggleDrawer(false)}
@@ -362,22 +373,21 @@ function App() {
                         }}
                       >
                         {analysisResult.result === "Vulnerable"
-                          ? "⚠️ Vulnerable code detected"
-                          : "✅ No vulnerability detected"}
+                          ? "Potentially vulnerable code detected"
+                          : "No vulnerability detected"}
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        Confidence: {analysisResult.confidence}
+                        Confidence: {formatConfidence(analysisResult.confidence)}
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 2 }}>
                         Processing time: {analysisResult.time}s
                       </Typography>
 
-                      {/* added for highlite vulnerable code block */}
-                      {analysisResult.highlights && analysisResult.highlights.length > 0 && (
-                        <Box sx={{ mt: 2 }}>
-                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                            🔍 Vulnerable Lines:
-                          </Typography>
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          Potentially vulnerable lines:
+                        </Typography>
+                        {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
                           <Box
                             component="ul"
                             sx={{
@@ -407,8 +417,13 @@ function App() {
                               </li>
                             ))}
                           </Box>
-                        </Box>
-                      )}
+                        ) : (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            The model flagged the snippet overall but couldn&apos;t isolate specific
+                            lines with enough confidence. Review the full code context.
+                          </Typography>
+                        )}
+                      </Box>
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
@@ -425,6 +440,12 @@ function App() {
                     variant="outlined"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+                        e.preventDefault();
+                        handleChatSubmit(chatInput);
+                      }
+                    }}
                     multiline
                     minRows={4}
                     maxRows={12}
