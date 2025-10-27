@@ -30,7 +30,7 @@ This branch combines the FastAPI backend and the React frontend in a single work
 
 From the repository root (with your virtual env active):
 ```bash
-scripts/dev.sh
+./scripts/dev.sh
 ```
 
 The script starts:
