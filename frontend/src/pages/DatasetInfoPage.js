@@ -1,70 +1,150 @@
-import React, { useState } from 'react';
-import { Container, Card, CardContent, Tabs, Tab, Typography, Box } from '@mui/material';
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Container,
+  Tabs,
+  Tab,
+  Typography,
+  Box,
+  Alert,
+  LinearProgress,
+} from "@mui/material";
 
-// Placeholder tab labels
-const TAB_LABELS = [
-    // Change these to your actual tab names
-    'Overview', // Tab 0
-    'Sources',  // Tab 1
-    'Statistics' // Tab 2
+const TAB_CONFIG = [
+  {
+    label: "Data Collection",
+    src: "/assets/dataset/data-collection.pdf",
+  },
+  {
+    label: "Data Processing",
+    src: "/assets/dataset/data-processing.pdf",
+  },
+  {
+    label: "Data Analysis",
+    src: "/assets/dataset/data-analysis.pdf",
+  },
 ];
 
+const PdfViewer = ({ src }) => (
+  <Box
+    sx={{
+      flex: 1,
+      borderRadius: 2,
+      overflow: "hidden",
+      bgcolor: "background.paper",
+      boxShadow: 3,
+    }}
+  >
+    <iframe
+      title={src}
+      src={`${src}#view=FitH`}
+      width="100%"
+      height="100%"
+      style={{ border: "none", minHeight: 470 }}
+    />
+  </Box>
+);
+
 export default function DatasetInfoPage() {
-    const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(0);
+  const [pdfReady, setPdfReady] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
 
-    // Placeholder content for each tab
-    const tabContent = [
-        // Overview tab content
-        <Box key={0}>
-            {/* Replace with your dataset overview text */}
-            <Typography variant="h5" gutterBottom>Dataset Overview</Typography>
-            <Typography variant="body1">
-                {/* Placeholder: dataset description */}
-                This dataset contains code samples for vulnerability detection. {/* <-- CHANGE THIS */}
-            </Typography>
-        </Box>,
-        // Sources tab content
-        <Box key={1}>
-            {/* Replace with your dataset sources */}
-            <Typography variant="h5" gutterBottom>Data Sources</Typography>
-            <Typography variant="body1">
-                {/* Placeholder: list of sources */}
-                - Source 1 {/* <-- CHANGE THIS */}<br />
-                - Source 2 {/* <-- CHANGE THIS */}<br />
-                - Source 3 {/* <-- CHANGE THIS */}
-            </Typography>
-        </Box>,
-        // Statistics tab content
-        <Box key={2}>
-            {/* Replace with your dataset statistics */}
-            <Typography variant="h5" gutterBottom>Statistics</Typography>
-            <Typography variant="body1">
-                {/* Placeholder: dataset stats */}
-                Total samples: 1234 {/* <-- CHANGE THIS */}<br />
-                Vulnerable: 567 {/* <-- CHANGE THIS */}<br />
-                Non-vulnerable: 667 {/* <-- CHANGE THIS */}
-            </Typography>
-        </Box>
-    ];
+  const activeConfig = useMemo(() => TAB_CONFIG[tab], [tab]);
 
-    return (
-        <Container sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center' }}>
-            <Card sx={{ width: '100%', maxWidth: 700, minHeight: 400, overflow: 'auto' }}>
-                <Tabs
-                    value={tab}
-                    onChange={(_, newTab) => setTab(newTab)}
-                    indicatorColor="primary"
-                    textColor="primary"
-                    variant="fullWidth"
-                >
-                    {TAB_LABELS.map((label, idx) => (
-                        <Tab label={label} key={idx} />
-                    ))}
-                </Tabs>
-                <CardContent sx={{ maxHeight: 500, overflowY: 'auto' }}>
-                    {tabContent[tab]}
-                </CardContent>
-            </Card>
-        </Container>
-    );
+  useEffect(() => {
+    let cancelled = false;
+    setPdfReady(false);
+    setPdfError(null);
+
+    fetch(activeConfig.src, { method: "HEAD" })
+      .then((res) => {
+        if (!cancelled) {
+          if (res.ok) {
+            setPdfReady(true);
+          } else {
+            setPdfError(
+              `The PDF at "${activeConfig.src}" could not be found (HTTP ${res.status}).`
+            );
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPdfError(
+            `The PDF at "${activeConfig.src}" could not be loaded. Ensure it exists in the public/assets/dataset folder.`
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeConfig]);
+
+  return (
+    <Container
+      component="main"
+      sx={{
+        mt: 2,
+        mb: 2,
+        flex: 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        maxWidth: "lg",
+      }}
+    >
+      <Box
+        sx={{
+          width: "100%",
+          flex: 1,
+          bgcolor: "grey.100",
+          borderRadius: 3,
+          boxShadow: 3,
+          p: 2,
+          display: "flex",
+          flexDirection: "column",
+          height: 570,
+        }}
+      >
+        <Tabs
+          value={tab}
+          onChange={(_, value) => setTab(value)}
+          textColor="primary"
+          indicatorColor="primary"
+          variant="fullWidth"
+          sx={{ mb: 0.75, '& .MuiTab-root': { minHeight: 28, paddingY: 0.25, fontSize: '0.82rem' } }}
+        >
+          {TAB_CONFIG.map((item) => (
+            <Tab key={item.label} label={item.label} />
+          ))}
+        </Tabs>
+
+        {!pdfReady && !pdfError && <LinearProgress sx={{ mb: 1 }} />}
+
+        {pdfError ? (
+          <Alert severity="warning">
+            {pdfError} Place the PDF in `public/assets/dataset/` or update the
+            path in `DatasetInfoPage.js`.
+          </Alert>
+        ) : pdfReady ? (
+          <PdfViewer src={activeConfig.src} />
+        ) : (
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Loading preview…
+            </Typography>
+          </Box>
+        )}
+      </Box>
+    </Container>
+  );
 }

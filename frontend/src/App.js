@@ -15,6 +15,7 @@ import {
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  Storage as StorageIcon,
 } from "@mui/icons-material";
 import HistoryPage from "./pages/HistoryPage";
 import KnowledgePage from "./pages/KnowledgePage";
@@ -195,6 +196,7 @@ function App() {
           { text: "Detect a vulnerability", icon: <MenuIcon />, link: "/" },
           { text: "Past analyses", icon: <HistoryIcon />, link: "/history" },
           { text: "Knowledge base", icon: <InfoIcon />, link: "/knowledge" },
+          { text: "Dataset information", icon: <StorageIcon />, link: "/dataset" },
         ].map((item) => {
           const selected = location.pathname === item.link;
           return (
