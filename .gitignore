@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.pyc
+models/
+
+# Frontend build artifacts and dependencies
+frontend/node_modules/
+frontend/build/
+frontend/.pnp/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/.DS_Store
+
+# macOS junk
+.DS_Store
