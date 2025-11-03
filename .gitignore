@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 models/
+data/
 
 # Frontend build artifacts and dependencies
 frontend/node_modules/

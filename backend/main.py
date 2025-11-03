@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, HTTPException, Depends, Request, BackgroundTasks, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, APIRouter, Depends, Request, BackgroundTasks, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -7,6 +7,7 @@ from typing import Optional, List, Dict
 import time
 import uuid
 import joblib
+import pandas as pd
 import numpy as np
 from preprocess import preprocess_code
 import warnings
@@ -72,7 +73,7 @@ class AnalyzeOut(BaseModel):
     confidence: Optional[float]
     processing_time_sec: float
     timestamp: str
-    highlights: Optional[List[Highlight]] = None
+    highlights: Optional[List[dict]] = None
 
 
 class UpdateUserIn(BaseModel):
@@ -99,13 +100,17 @@ def _save_history(email: str, entry: dict):
 # Step 8. Load trained AI components
 try:
     VECTORIZER = joblib.load("./models/vectorizer.joblib")
+    
     SCALER = joblib.load("./models/scaler.joblib")
-    MODEL = joblib.load("./models/knn_model.joblib")
-    KNN = MODEL
+    KNN = joblib.load("./models/knn_model.joblib")
+    
+    RF_SCALER = joblib.load("./models/rf_scaler.joblib")
+    RF = joblib.load("./models/rf_model.joblib")
+    
     print("Model components loaded successfully.")
 except Exception as e:
     print(f"Error loading model components: {e}")
-    VECTORIZER = SCALER = MODEL = KNN = None
+    VECTORIZER = SCALER = RF_SCALER = KNN = RF = None
 
 # ------------------------------------------------------------
 # Step 9. Authentication endpoints
@@ -156,7 +161,6 @@ def predict_proba_from_text(text: str):
             if hasattr(SCALER, "feature_names_in_"):
                 # when scaler expects dataframe columns
                 cols = getattr(VECTORIZER, 'get_feature_names_out', lambda: [f'F{i}' for i in range(X_dense.shape[1])])()
-                import pandas as pd
                 df = pd.DataFrame(X_dense, columns=cols)
                 Xs = SCALER.transform(df)
             else:
@@ -268,7 +272,6 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
     func_scores.sort(key=lambda x: x[2], reverse=True)
     highlights = []
     # only examine top N functions for line-level occlusion
-    MIN_LINE_SCORE = 0.05
     for (s, e, fscore) in func_scores[:top_funcs]:
         # for each line in the block, mask and measure
         for idx in range(s, e+1):
@@ -291,17 +294,8 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
                 except Exception:
                     sc = 0.0
             else:
-                sc = float(max(base_proba - p, 0.0))
-
-            line_text = lines[idx].strip()
-            if not line_text:
-                continue
-            if line_text in {"{", "}"}:
-                continue
-
-            score_val = round(sc, 6)
-            if sc >= MIN_LINE_SCORE:
-                highlights.append({"line": idx+1, "score": score_val, "snippet": line_text})
+                sc = float(base_proba - p)
+            highlights.append({"line": idx+1, "score": round(sc, 6), "snippet": lines[idx].strip()})
     # sort highlights by score and return top unique lines
     highlights.sort(key=lambda x: x["score"], reverse=True)
     # remove duplicates and take top K
@@ -320,90 +314,89 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
 async def analyze(
     request: Request,
     code: Optional[str] = Form(None),
-    file: Optional[UploadFile] = File(None)
+    file: Optional[UploadFile] = File(None),
+    model: str = Form("knn")  # Toggle model: "knn" (classification) or "rf" (regression)
 ):
     start_time = time.time()
 
-    # Step 1. Check input
+    # Validate and load input
     if not code and not file:
         raise HTTPException(status_code=400, detail="No input provided (code or file).")
 
-    # Step 2. Read code content
     try:
-        if file:
-            content = (await file.read()).decode("utf-8", errors="ignore")
-            raw_code = content
-        else:
-            raw_code = code
+        raw_code = (await file.read()).decode("utf-8", errors="ignore") if file else code
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File read failed: {str(e)}")
 
-    # Step 3. Preprocess code (main)
+    # Preprocess and vectorize code
     try:
         processed = preprocess_code(raw_code)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Preprocessing failed: {str(e)}")
-
-    # Step 4. Vectorization and scaling (original logic)
-    try:
-        from scipy import sparse
-        import pandas as pd
-        import traceback
-
         X_vec = VECTORIZER.transform([processed])
-        if hasattr(SCALER, 'feature_names_in_'):
-            cols = getattr(VECTORIZER, 'get_feature_names_out', lambda: [f'F{i}' for i in range(X_vec.shape[1])])()
-            X_dense = X_vec.toarray() if sparse.issparse(X_vec) else np.asarray(X_vec)
-            df = pd.DataFrame(X_dense, columns=cols)
-            X_scaled = SCALER.transform(df)
-        else:
-            X_dense = X_vec.toarray() if sparse.issparse(X_vec) else np.asarray(X_vec)
-            try:
-                X_scaled = SCALER.transform(X_dense)
-            except Exception as e:
-                print("Scaler transform failed:", e)
-                print(traceback.format_exc())
-                X_scaled = X_dense
+        X_dense = X_vec.toarray() if hasattr(X_vec, "toarray") else np.asarray(X_vec)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Vectorization/Scaling failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Vectorization failed: {str(e)}")
 
-    # Step 5. Model prediction
+    # Scale depending on chosen model
     try:
-        pred = int(KNN.predict(X_scaled)[0])
-        proba = float(KNN.predict_proba(X_scaled).max()) if hasattr(KNN, "predict_proba") else None
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model prediction failed: {str(e)}")
+        if model == "rf":
+            scaler = RF_SCALER
+        else:
+            scaler = SCALER
 
-    # Step 6. Locate vulnerable regions (new)
+        try:
+            X_scaled = scaler.transform(X_dense)
+        except Exception:
+            X_scaled = X_dense
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scaling failed: {str(e)}")
+
+    # Run the selected model
+    result_label = None
+    confidence = None
+
+    try:
+        if model == "knn":
+            pred = int(KNN.predict(X_scaled)[0])
+            proba = float(KNN.predict_proba(X_scaled).max()) if hasattr(KNN, "predict_proba") else None
+            result_label = "Vulnerable" if pred == 1 else "Safe"
+            confidence = proba
+
+        elif model == "rf":
+            risk_score = float(RF.predict(X_scaled)[0])
+            if risk_score < 0.3:
+                risk_label = "Safe"
+            else:
+                risk_label = "Vulnerable"
+            result_label = risk_label
+            confidence = risk_score
+
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown model '{model}'")
+
+    except Exception as e:
+        print(f"Model prediction failed ({model}):", e)
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+    # Identify vulnerable regions (optional)
     try:
         highlights = locate_vulnerable_regions(raw_code, top_funcs=2, top_lines=5)
     except Exception as e:
         print("locate_vulnerable_regions failed:", e)
         highlights = []
 
-    # Step 7. Create result object
+    # Build and return output
     elapsed = round(time.time() - start_time, 3)
-    result_label = "Vulnerable" if pred == 1 else "Safe"
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
     result_obj = AnalyzeOut(
         result=result_label,
-        confidence=proba,
+        confidence=confidence,
         processing_time_sec=elapsed,
         timestamp=timestamp,
         highlights=highlights
     )
 
-    # Extract token from header and save result to history (include highlights)
-    auth_header = request.headers.get("Authorization")
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        email = authenticate_token(token)
-        if email:
-            _save_history(email, result_obj.dict())
-
     return result_obj
-
 # ------------------------------------------------------------
 # Step 11. Retrieve user history (used by HistoryPage.js)
 @app.get("/api/history")
@@ -515,3 +508,65 @@ def delete_history(request: Request, db=Depends(get_db)):
 
     # Step 5. Return confirmation message
     return {"message": "All analysis history has been cleared successfully."}
+
+# ------------------------------------------------------------
+# Visualization endpoints
+# ------------------------------------------------------------
+
+def compute_token_frequency(df): 
+    """Count how many SAFE (0) and VULNERABLE (1) samples contain each token (weight > 0)."""
+
+    token_start_col = df.columns.get_loc("break")   # first token column
+    token_cols = df.columns[token_start_col:]
+
+    result = []
+    for token in token_cols:
+        safe_count = df[(df["label_encoded"] == 0) & (df[token] > 0)].shape[0]
+        vuln_count = df[(df["label_encoded"] == 1) & (df[token] > 0)].shape[0]
+
+        result.append({
+            "token": token,
+            "safe": int(safe_count),
+            "vulnerable": int(vuln_count)
+        })
+
+    return sorted(result, key=lambda x: x["vulnerable"], reverse=True)
+
+def compute_class_distribution(df):
+    """"""
+
+def compute_language_distribution(df):
+    """Compute distribution of programming languages in the dataset."""
+
+    lang_start_col = df.columns.get_loc("lang_C")
+    lang_end_col = df.columns.get_loc("lang_Scala") + 1
+    lang_cols = df.columns[lang_start_col:lang_end_col]
+    
+    result = []
+    for lang in lang_cols:
+        count = df[df[lang] > 0].shape[0]
+        
+        result.append({
+            "language": lang.replace("lang_", ""),
+            "count": int(count)
+        })
+    
+    return result
+
+def prepare_visualization_payload(df):
+    return {
+        "token_frequency": compute_token_frequency(df),
+        "class_distribution": compute_class_distribution(df),
+        "language_distribution": compute_language_distribution(df)
+    }
+
+@app.get("/api/visualization")
+def get_all_visualization_data():
+    try:
+        DATAFRAME = pd.read_csv("./data/processed_dataset_final.csv", low_memory=False)
+    except Exception as e:
+        DATAFRAME = None
+        raise HTTPException(status_code=500, detail=f"Failed to load dataset: {str(e)}")
+    if DATAFRAME is None:
+        raise HTTPException(status_code=501, detail="Dataset not loaded.")
+    return prepare_visualization_payload(DATAFRAME)

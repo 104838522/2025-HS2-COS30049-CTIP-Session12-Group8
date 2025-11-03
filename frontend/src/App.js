@@ -5,7 +5,7 @@ import {
   Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions, CircularProgress, LinearProgress,
-  Divider, InputAdornment, Tooltip
+  Divider, InputAdornment, Select, MenuItem, FormControl, InputLabel
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -15,7 +15,6 @@ import {
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Storage as StorageIcon,
 } from "@mui/icons-material";
 import HistoryPage from "./pages/HistoryPage";
 import KnowledgePage from "./pages/KnowledgePage";
@@ -91,13 +90,6 @@ function App() {
   const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
 
-  const formatConfidence = (value) => {
-    if (typeof value === "number" && !Number.isNaN(value)) {
-      return `${(value * 100).toFixed(1)}%`;
-    }
-    return "N/A";
-  };
-
   // ===== Drawer Toggle =====
   const toggleDrawer = (open) => (event) => {
     if (event.type === "keydown" && (event.key === "Tab" || event.key === "Shift")) return;
@@ -122,6 +114,8 @@ function App() {
   }
 
   // ======================== FastAPI Request ===================
+  const [selectedModel, setSelectedModel] = useState("knn");
+
   const handleChatSubmit = async (content, force = false) => {
     const payload = typeof content === "string" ? content : chatInput;
     if (!payload || payload.trim() === "") {
@@ -142,23 +136,20 @@ function App() {
       const token = localStorage.getItem("vulnlocator_token");
       const formData = new FormData();
       formData.append("code", payload);
+      formData.append("model", selectedModel);
 
       const res = await axios.post("http://localhost:8000/api/analyze", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`, 
         },
       });
 
       const data = res.data || {};
-      const confidenceValue =
-        typeof data.confidence === "number" && !Number.isNaN(data.confidence)
-          ? data.confidence
-          : null;
       setAnalysisResult({
         code: payload,
         result: data.result ?? "Unknown",
-        confidence: confidenceValue,
+        confidence: data.confidence ?? "N/A",
         time: data.processing_time_sec ?? null,
         timestamp: data.timestamp ?? "",
         highlights: data.highlights ?? [],   //  highlights
@@ -185,7 +176,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         bgcolor: darkMode ? "#121212" : "background.paper",
-        color: darkMode ? "#f5f5f5" : "text.primary",
+        color: darkMode ? "#f5f5f5" : "text.primary", 
       }}
       role="presentation"
       onClick={toggleDrawer(false)}
@@ -196,7 +187,6 @@ function App() {
           { text: "Detect a vulnerability", icon: <MenuIcon />, link: "/" },
           { text: "Past analyses", icon: <HistoryIcon />, link: "/history" },
           { text: "Knowledge base", icon: <InfoIcon />, link: "/knowledge" },
-          { text: "Dataset information", icon: <StorageIcon />, link: "/dataset" },
         ].map((item) => {
           const selected = location.pathname === item.link;
           return (
@@ -360,12 +350,6 @@ function App() {
                 {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
 
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
-                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                    {/* TODO! */}
-                    <Tooltip title="FILL IN WITH INFO ABOUT HOW IT WORKS">
-                      <InfoIcon sx={{ color: "text.secondary" }} />
-                    </Tooltip>
-                  </Box>
                   {/* ===== Analysis Result Area =====*/}
                   {analysisResult ? (
                     <Box sx={{ mt: 3 }}>
@@ -381,21 +365,22 @@ function App() {
                         }}
                       >
                         {analysisResult.result === "Vulnerable"
-                          ? "Potentially vulnerable code detected"
-                          : "No vulnerability detected"}
+                          ? "⚠️ Vulnerable code detected"
+                          : "✅ No vulnerability detected"}
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        Confidence: {formatConfidence(analysisResult.confidence)}
+                        Confidence: {analysisResult.confidence}
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 2 }}>
                         Processing time: {analysisResult.time}s
                       </Typography>
 
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          Potentially vulnerable lines:
-                        </Typography>
-                        {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
+                      {/* added for highlite vulnerable code block */}
+                      {analysisResult.highlights && analysisResult.highlights.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            🔍 Vulnerable Lines:
+                          </Typography>
                           <Box
                             component="ul"
                             sx={{
@@ -425,13 +410,8 @@ function App() {
                               </li>
                             ))}
                           </Box>
-                        ) : (
-                          <Typography variant="body2" sx={{ mt: 1 }}>
-                            The model flagged the snippet overall but couldn&apos;t isolate specific
-                            lines with enough confidence. Review the full code context.
-                          </Typography>
-                        )}
-                      </Box>
+                        </Box>
+                      )}
                     </Box>
                   ) : (
                     <Typography variant="body2" color="text.secondary">
@@ -442,20 +422,25 @@ function App() {
 
                 {/* ===== Input Area ===== */}
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1 }}>
+                  <FormControl sx={{ minWidth: 180 }}>
+                    <InputLabel>Model</InputLabel>
+                    <Select
+                      value={selectedModel}
+                      onChange={(e) => setSelectedModel(e.target.value)}
+                      label="Model"
+                    >
+                      <MenuItem value="knn">KNN (Classification)</MenuItem>
+                      <MenuItem value="rf">Random Forest (Regression)</MenuItem>
+                    </Select>
+                  </FormControl>
                   <TextField
                     fullWidth
                     placeholder="Paste code or type here..."
                     variant="outlined"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
-                        e.preventDefault();
-                        handleChatSubmit(chatInput);
-                      }
-                    }}
                     multiline
-                    minRows={1}
+                    minRows={4}
                     maxRows={12}
                     sx={{
                       bgcolor: darkMode ? "grey.900" : "white",

@@ -19,7 +19,7 @@ import shutil
 
 # -------------------------------------------------
 # 1) Load dataset
-DATA_PATH = "processed_dataset_final.csv"
+DATA_PATH = "./data/processed_dataset_final.csv"
 df = pd.read_csv(DATA_PATH, low_memory=False)
 
 # -------------------------------------------------
