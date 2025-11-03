@@ -5,7 +5,7 @@ import {
   Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions, CircularProgress, LinearProgress,
-  Divider, InputAdornment
+  Divider, InputAdornment, Tooltip
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -360,6 +360,12 @@ function App() {
                 {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
 
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
+                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    {/* TODO! */}
+                    <Tooltip title="FILL IN WITH INFO ABOUT HOW IT WORKS">
+                      <InfoIcon sx={{ color: "text.secondary" }} />
+                    </Tooltip>
+                  </Box>
                   {/* ===== Analysis Result Area =====*/}
                   {analysisResult ? (
                     <Box sx={{ mt: 3 }}>
@@ -449,7 +455,7 @@ function App() {
                       }
                     }}
                     multiline
-                    minRows={4}
+                    minRows={1}
                     maxRows={12}
                     sx={{
                       bgcolor: darkMode ? "grey.900" : "white",
