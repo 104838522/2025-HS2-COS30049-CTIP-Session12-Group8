@@ -32,6 +32,7 @@ const PdfViewer = ({ src }) => (
       overflow: "hidden",
       bgcolor: "background.paper",
       boxShadow: 3,
+      height: "100%",
     }}
   >
     <iframe
@@ -39,7 +40,7 @@ const PdfViewer = ({ src }) => (
       src={`${src}#view=FitH`}
       width="100%"
       height="100%"
-      style={{ border: "none", minHeight: 470 }}
+      style={{ border: "none", borderRadius: 8, display: "block" }}
     />
   </Box>
 );
@@ -98,14 +99,13 @@ export default function DatasetInfoPage() {
       <Box
         sx={{
           width: "100%",
-          flex: 1,
           bgcolor: "grey.100",
           borderRadius: 3,
           boxShadow: 3,
-          p: 2,
+          p: 2.5,
           display: "flex",
           flexDirection: "column",
-          height: 570,
+          height: "calc(100vh - 120px)",
         }}
       >
         <Tabs
@@ -114,7 +114,7 @@ export default function DatasetInfoPage() {
           textColor="primary"
           indicatorColor="primary"
           variant="fullWidth"
-          sx={{ mb: 0.75, '& .MuiTab-root': { minHeight: 28, paddingY: 0.25, fontSize: '0.82rem' } }}
+          sx={{ mb: 0.75, '& .MuiTab-root': { minHeight: 28, paddingY: 0.5, fontSize: '0.82rem' } }}
         >
           {TAB_CONFIG.map((item) => (
             <Tab key={item.label} label={item.label} />

@@ -15,6 +15,7 @@ import {
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
+  Storage as StorageIcon
 } from "@mui/icons-material";
 import HistoryPage from "./pages/HistoryPage";
 import KnowledgePage from "./pages/KnowledgePage";
@@ -24,6 +25,7 @@ import SettingsDialog from "./components/SettingsDialog";
 import { useAuth } from "./context/AuthContext";
 import DatasetInfoPage from "./pages/DatasetInfoPage";
 import axios from "axios";
+import { text } from "d3";
 
 // ===== VulnLocator Logo Text =====
 function LogoText({ small, size }) {
@@ -141,7 +143,7 @@ function App() {
       const res = await axios.post("http://localhost:8000/api/analyze", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          "Authorization": `Bearer ${token}`, 
+          "Authorization": `Bearer ${token}`,
         },
       });
 
@@ -176,7 +178,7 @@ function App() {
         display: "flex",
         flexDirection: "column",
         bgcolor: darkMode ? "#121212" : "background.paper",
-        color: darkMode ? "#f5f5f5" : "text.primary", 
+        color: darkMode ? "#f5f5f5" : "text.primary",
       }}
       role="presentation"
       onClick={toggleDrawer(false)}
@@ -187,6 +189,7 @@ function App() {
           { text: "Detect a vulnerability", icon: <MenuIcon />, link: "/" },
           { text: "Past analyses", icon: <HistoryIcon />, link: "/history" },
           { text: "Knowledge base", icon: <InfoIcon />, link: "/knowledge" },
+          { text: "Dataset info", icon: <StorageIcon />, link: "/dataset" },
         ].map((item) => {
           const selected = location.pathname === item.link;
           return (
@@ -428,9 +431,33 @@ function App() {
                       value={selectedModel}
                       onChange={(e) => setSelectedModel(e.target.value)}
                       label="Model"
+                      sx={{
+                        '& .MuiSelect-select': {
+                          color: darkMode ? '#fff' : 'inherit',
+                        },
+                      }}
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            '& .MuiMenuItem-root': {
+                              '&:hover': {
+                                bgcolor: 'rgba(209, 157, 0, 0.1)',
+                              },
+                              '&.Mui-selected': {
+                                bgcolor: '#d19d00',
+                                color: '#2b2b2b',
+                                fontWeight: 600,
+                                '&:hover': {
+                                  bgcolor: '#c18f00',
+                                },
+                              },
+                            },
+                          },
+                        },
+                      }}
                     >
-                      <MenuItem value="knn">KNN (Classification)</MenuItem>
-                      <MenuItem value="rf">Random Forest (Regression)</MenuItem>
+                      <MenuItem value="knn">KNN</MenuItem>
+                      <MenuItem value="rf">Random Forest</MenuItem>
                     </Select>
                   </FormControl>
                   <TextField
