@@ -2,7 +2,8 @@
 __pycache__/
 *.pyc
 models/
-data/
+data/*
+!data/processed_dataset_final.csv.gz
 
 # Frontend build artifacts and dependencies
 frontend/node_modules/
