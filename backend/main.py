@@ -126,7 +126,7 @@ def _save_history(email: str, entry: dict):
 try:
     VECTORIZER = joblib.load("./models/vectorizer.joblib")
 
-    SCALER = joblib.load("./models/scaler.joblib")
+    KNN_SCALER = joblib.load("./models/knn_scaler.joblib")
     KNN = joblib.load("./models/knn_model.joblib")
 
     RF_SCALER = joblib.load("./models/rf_scaler.joblib")
@@ -135,7 +135,7 @@ try:
     print("Model components loaded successfully.")
 except Exception as e:
     print(f"Error loading model components: {e}")
-    VECTORIZER = SCALER = RF_SCALER = KNN = RF = None
+    VECTORIZER = KNN_SCALER = RF_SCALER = KNN = RF = None
 
 
 # ------------------------------------------------------------
@@ -176,55 +176,73 @@ def login(payload: LoginIn, db=Depends(get_db)):
 # ------------------------------------------------------------
 # Step 10. Analyze (AI Prediction)
 
-
-# ---------- Helper: predict probability (use existing VECTORIZER/SCALER/KNN) ----------
-def predict_proba_from_text(text: str):
+# ---------- Helper: predict probability/score (works for KNN or RF) ----------
+def predict_score_from_text(text: str, model_name: str = "knn"):
     """
-    Return model max probability for the given code text.
-    If predict_proba not available, return None.
+    Return a single score for the given code text.
+    - For KNN (classification) return the max probability (0..1) if available.
+    - For RF (regression) return the predicted risk score (assumed 0..1).
+    - If the required model/scaler/vectorizer is not available, return None.
     """
     try:
         proc = preprocess_code(text)
         X_vec = VECTORIZER.transform([proc])
-        # dense
+
+        # convert to dense array
         if hasattr(X_vec, "toarray"):
             X_dense = X_vec.toarray()
         else:
             X_dense = np.asarray(X_vec)
-        # scale
+
+        # choose scaler and model depending on model_name
+        if model_name == "rf":
+            scaler = RF_SCALER
+            model = RF
+        else:
+            scaler = KNN_SCALER
+            model = KNN
+
+        # apply scaler if available (handle dataframe-compatible scaler)
         try:
-            if hasattr(SCALER, "feature_names_in_"):
-                # when scaler expects dataframe columns
+            if scaler is not None and hasattr(scaler, "feature_names_in_"):
                 cols = getattr(
                     VECTORIZER,
                     "get_feature_names_out",
                     lambda: [f"F{i}" for i in range(X_dense.shape[1])],
                 )()
                 df = pd.DataFrame(X_dense, columns=cols)
-                Xs = SCALER.transform(df)
+                Xs = scaler.transform(df)
+            elif scaler is not None:
+                Xs = scaler.transform(X_dense)
             else:
-                Xs = SCALER.transform(X_dense)
+                Xs = X_dense
         except Exception:
             Xs = X_dense
-        if hasattr(KNN, "predict_proba"):
-            return float(KNN.predict_proba(Xs).max())
-        else:
-            return None
+
+        # predict using chosen model
+        if model_name == "rf":
+            if model is None:
+                return None
+            score = float(model.predict(Xs)[0])
+            return score
+        else:  # knn default
+            if model is None:
+                return None
+            if hasattr(model, "predict_proba"):
+                return float(model.predict_proba(Xs).max())
+            else:
+                # fallback: if KNN does not have predict_proba, return class as 0/1
+                pred = int(model.predict(Xs)[0])
+                return float(pred)
     except Exception as e:
-        print("predict_proba_from_text failed:", e)
+        print("predict_score_from_text failed:", e)
         print(traceback.format_exc())
         return None
 
 
-# ---------- Helper: naive function splitter ----------
+# ---------- Helper: naive function splitter (unchanged) ----------
 def simple_function_split(lines):
-    """
-    Return list of (start_index, end_index) tuples for code 'blocks' to check.
-    This is a very small heuristic: looks for function-like lines:
-    - Python: lines starting with 'def ' or 'class '
-    - C/Java/JS: lines ending with '{' (assume block starts)
-    Fallback: treat whole file as single block (0..len-1)
-    """
+    # (same implementation as your original)
     blocks = []
     n = len(lines)
     i = 0
@@ -232,7 +250,6 @@ def simple_function_split(lines):
         line = lines[i].lstrip()
         if line.startswith("def ") or line.startswith("class "):
             start = i
-            # find end: next blank line that is not indented (very naive)
             j = i + 1
             while j < n and (
                 lines[j].startswith(" ")
@@ -244,7 +261,6 @@ def simple_function_split(lines):
             i = j
         elif line.endswith("{"):
             start = i
-            # find matching '}' (naive)
             depth = 1
             j = i + 1
             while j < n and depth > 0:
@@ -257,119 +273,120 @@ def simple_function_split(lines):
             i = j
         else:
             i += 1
-    if not blocks:
-        # entire file as one block
-        if n > 0:
-            blocks = [(0, n - 1)]
+    if not blocks and n > 0:
+        blocks = [(0, n - 1)]
     return blocks
 
 
-# ---------- Main locator: function-level then line-level occlusion ----------
-def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int = 5):
+# ---------- Main locator: function-level then line-level occlusion (model-aware) ----------
+def locate_vulnerable_regions(raw_code: str, model_name: str = "knn", top_funcs: int = 3, top_lines: int = 5, base_score: float = None):
     """
-    1) Split code into blocks/functions (simple heuristic).
-    2) Compute base probability.
-    3) Mask each function block and compute delta.
-    4) For top function blocks, mask lines inside to rank line importance.
-    Return list of dicts: {line, score, snippet}
+    Identify lines that reduce the model score when removed.
+    - model_name: "knn" or "rf"
+    - base_score: if provided, reuse instead of recalculating
+    Returns list of dicts: {line, score, snippet}
     """
     lines = raw_code.splitlines()
     if len(lines) == 0:
         return []
 
-    base_proba = predict_proba_from_text(raw_code)
+    # compute base score if not provided
+    if base_score is None:
+        base_score = predict_score_from_text(raw_code, model_name=model_name)
 
     blocks = simple_function_split(lines)
-
     func_scores = []
+
     for s, e in blocks:
+        # mask the whole block
         masked = lines.copy()
         for idx in range(s, e + 1):
-            masked[idx] = ""  # mask the whole block
+            masked[idx] = ""
         masked_text = "\n".join(masked)
-        p = predict_proba_from_text(masked_text)
-        if base_proba is None or p is None:
-            # fallback: use class change if predict_proba not available
+        p = predict_score_from_text(masked_text, model_name=model_name)
+
+        # unify scoring: always use non-negative delta if base_score is available
+        if base_score is None or p is None:
+            # fallback: use class-change if classification model exists
             try:
-                # predict classes (costly) - but attempt
-                X_base = VECTORIZER.transform([preprocess_code(raw_code)])
-                X_base_d = (
-                    X_base.toarray()
-                    if hasattr(X_base, "toarray")
-                    else np.asarray(X_base)
-                )
-                try:
-                    Xb = SCALER.transform(X_base_d)
-                except Exception:
-                    Xb = X_base_d
-                base_pred = int(KNN.predict(Xb)[0])
-                X_mask = VECTORIZER.transform([preprocess_code(masked_text)])
-                Xm_d = (
-                    X_mask.toarray()
-                    if hasattr(X_mask, "toarray")
-                    else np.asarray(X_mask)
-                )
-                try:
-                    Xm = SCALER.transform(Xm_d)
-                except Exception:
-                    Xm = Xm_d
-                pred_mask = int(KNN.predict(Xm)[0])
-                score = 1.0 if base_pred != pred_mask else 0.0
+                # attempt class-based fallback for KNN-like behavior
+                if model_name == "knn" and KNN is not None:
+                    X_base = VECTORIZER.transform([preprocess_code(raw_code)])
+                    Xb = X_base.toarray() if hasattr(X_base, "toarray") else np.asarray(X_base)
+                    try:
+                        Xb_scaled = KNN_SCALER.transform(Xb)
+                    except Exception:
+                        Xb_scaled = Xb
+                    base_pred = int(KNN.predict(Xb_scaled)[0])
+
+                    X_mask = VECTORIZER.transform([preprocess_code(masked_text)])
+                    Xm = X_mask.toarray() if hasattr(X_mask, "toarray") else np.asarray(X_mask)
+                    try:
+                        Xm_scaled = KNN_SCALER.transform(Xm)
+                    except Exception:
+                        Xm_scaled = Xm
+                    pred_mask = int(KNN.predict(Xm_scaled)[0])
+                    score = 0.5 if base_pred != pred_mask else 0.0  # softened fallback
+                else:
+                    score = 0.0
             except Exception:
                 score = 0.0
         else:
-            score = float(base_proba - p)
+            # positive impact only (clamp to zero)
+            try:
+                score = float(max(base_score - p, 0.0))
+            except Exception:
+                score = 0.0
+
         func_scores.append((s, e, score))
 
-    # sort blocks by their score (high -> low)
+    # sort blocks by score descending
     func_scores.sort(key=lambda x: x[2], reverse=True)
+
     highlights = []
-    # only examine top N functions for line-level occlusion
     MIN_LINE_SCORE = 0.05
+
     for s, e, fscore in func_scores[:top_funcs]:
-        # for each line in the block, mask and measure
         for idx in range(s, e + 1):
             masked = lines.copy()
-            masked[idx] = ""  # mask single line
+            masked[idx] = ""
             masked_text = "\n".join(masked)
-            p = predict_proba_from_text(masked_text)
-            if base_proba is None or p is None:
-                # fallback class-change scoring
+            p = predict_score_from_text(masked_text, model_name=model_name)
+
+            if base_score is None or p is None:
+                # fallback class-change
                 try:
                     X_mask = VECTORIZER.transform([preprocess_code(masked_text)])
-                    Xm_d = (
-                        X_mask.toarray()
-                        if hasattr(X_mask, "toarray")
-                        else np.asarray(X_mask)
-                    )
+                    Xm_d = X_mask.toarray() if hasattr(X_mask, "toarray") else np.asarray(X_mask)
                     try:
-                        Xm = SCALER.transform(Xm_d)
+                        Xm = KNN_SCALER.transform(Xm_d)
                     except Exception:
                         Xm = Xm_d
-                    base_pred = int(
-                        KNN.predict(X_scaled)[0]
-                    )  # note: X_scaled must be precomputed outside - but simpler to call predict again below
+                    # attempt to get a base_pred from original full code
+                    X_full = VECTORIZER.transform([preprocess_code(raw_code)])
+                    X_full_d = X_full.toarray() if hasattr(X_full, "toarray") else np.asarray(X_full)
+                    try:
+                        X_full_s = KNN_SCALER.transform(X_full_d)
+                    except Exception:
+                        X_full_s = X_full_d
+                    base_pred = int(KNN.predict(X_full_s)[0])
                     pred_mask = int(KNN.predict(Xm)[0])
-                    sc = 1.0 if base_pred != pred_mask else 0.0
+                    sc = 0.5 if base_pred != pred_mask else 0.0
                 except Exception:
                     sc = 0.0
             else:
-                sc = float(max(base_proba - p, 0.0))
+                sc = float(max(base_score - p, 0.0))
 
             line_text = lines[idx].strip()
-            if not line_text:
-                continue
-            if line_text in {"{", "}"}:
+            if not line_text or line_text in {"{", "}"}:
                 continue
 
             score_val = round(sc, 6)
             if sc >= MIN_LINE_SCORE:
-                highlights.append(
-                    {"line": idx + 1, "score": score_val, "snippet": line_text}
-                )
-    # sort highlights by score and return top unique lines
+                highlights.append({"line": idx + 1, "score": score_val, "snippet": line_text})
+
+    # sort and unique top results
     highlights.sort(key=lambda x: x["score"], reverse=True)
-    # remove duplicates and take top K
     seen = set()
     out = []
     for h in highlights:
@@ -378,93 +395,82 @@ def locate_vulnerable_regions(raw_code: str, top_funcs: int = 3, top_lines: int 
             seen.add(h["line"])
         if len(out) >= top_funcs * top_lines:
             break
+
     return out
 
 
-# ---------- Updated analyze endpoint ----------
+# ---------- Updated analyze endpoint (calls the new helpers and skips highlights when safe) ----------
 @app.post("/api/analyze", response_model=AnalyzeOut)
 async def analyze(
     request: Request,
     code: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
-    model: str = Form(
-        "knn"
-    ),  # Toggle model: "knn" (classification) or "rf" (regression)
+    model: str = Form("knn"),
 ):
     start_time = time.time()
 
-    # Validate and load input
     if not code and not file:
         raise HTTPException(status_code=400, detail="No input provided (code or file).")
 
     try:
-        raw_code = (
-            (await file.read()).decode("utf-8", errors="ignore") if file else code
-        )
+        raw_code = (await file.read()).decode("utf-8", errors="ignore") if file else code
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File read failed: {str(e)}")
 
-    # Preprocess and vectorize code
+    # vectorize + scale for prediction
     try:
         processed = preprocess_code(raw_code)
         X_vec = VECTORIZER.transform([processed])
         X_dense = X_vec.toarray() if hasattr(X_vec, "toarray") else np.asarray(X_vec)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Vectorization failed: {str(e)}")
-
-    # Scale depending on chosen model
-    try:
-        if model == "rf":
-            scaler = RF_SCALER
-        else:
-            scaler = SCALER
-
+        # select scaler
+        scaler = RF_SCALER if model == "rf" else KNN_SCALER
         try:
-            X_scaled = scaler.transform(X_dense)
+            X_scaled = scaler.transform(X_dense) if scaler is not None else X_dense
         except Exception:
             X_scaled = X_dense
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Scaling failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Vectorization failed: {str(e)}")
 
-    # Run the selected model
+    # compute main prediction and base_score (single call)
     result_label = None
     confidence = None
+    base_score = None
 
     try:
         if model == "knn":
+            if KNN is None:
+                raise HTTPException(status_code=500, detail="KNN model not loaded.")
             pred = int(KNN.predict(X_scaled)[0])
-            proba = (
-                float(KNN.predict_proba(X_scaled).max())
-                if hasattr(KNN, "predict_proba")
-                else None
-            )
+            proba = float(KNN.predict_proba(X_scaled).max()) if hasattr(KNN, "predict_proba") else None
             result_label = "Vulnerable" if pred == 1 else "Safe"
             confidence = proba
-
+            base_score = proba if proba is not None else float(pred)
         elif model == "rf":
+            if RF is None:
+                raise HTTPException(status_code=500, detail="RF model not loaded.")
             risk_score = float(RF.predict(X_scaled)[0])
-            if risk_score < 0.3:
-                risk_label = "Safe"
-            else:
-                risk_label = "Vulnerable"
-            result_label = risk_label
+            result_label = "Safe" if risk_score < 0.3 else "Vulnerable"
             confidence = risk_score
-
+            base_score = risk_score
         else:
             raise HTTPException(status_code=400, detail=f"Unknown model '{model}'")
-
     except Exception as e:
         print(f"Model prediction failed ({model}):", e)
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
-    # Identify vulnerable regions (optional)
-    try:
-        highlights = locate_vulnerable_regions(raw_code, top_funcs=2, top_lines=5)
-    except Exception as e:
-        print("locate_vulnerable_regions failed:", e)
+    # Determine whether to run detailed region search
+    MIN_CONF_TO_EXPLAIN = 0.35  # only explain if base_score >= threshold
+    highlights = []
+    if base_score is not None and result_label == "Vulnerable" and base_score >= MIN_CONF_TO_EXPLAIN:
+        try:
+            highlights = locate_vulnerable_regions(raw_code, model_name=model, top_funcs=2, top_lines=5, base_score=base_score)
+        except Exception as e:
+            print("locate_vulnerable_regions failed:", e)
+            highlights = []
+    else:
+        # if safe or low confidence, do not show highlights
         highlights = []
 
-    # Build and return output
     elapsed = round(time.time() - start_time, 3)
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -475,6 +481,14 @@ async def analyze(
         timestamp=timestamp,
         highlights=highlights,
     )
+
+    # Save to history (only if token is valid)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        email = authenticate_token(token)
+        if email:
+            _save_history(email, result_obj.dict())
 
     return result_obj
 
@@ -653,3 +667,31 @@ def get_all_visualization_data():
     if DATAFRAME is None:
         raise HTTPException(status_code=501, detail="Dataset not loaded.")
     return prepare_visualization_payload(DATAFRAME)
+
+#==For summary stats & Data Visualization==========================================
+
+@app.get("/api/stats/summary")
+def get_summary_stats():
+    """
+    Summarize total Safe/Vulnerable counts and time-based confidence trend.
+    """
+    safe_count, vuln_count = 0, 0
+    trend_data = []
+
+    for email, records in HISTORY.items():
+        for record in records:
+            if record["result"] == "Safe":
+                safe_count += 1
+            else:
+                vuln_count += 1
+            trend_data.append({
+                "timestamp": record["timestamp"],
+                "confidence": record["confidence"],
+                "result": record["result"]
+            })
+
+    return {
+        "safe_count": safe_count,
+        "vulnerable_count": vuln_count,
+        "trend_data": trend_data
+    }

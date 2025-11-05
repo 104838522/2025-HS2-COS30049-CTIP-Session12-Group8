@@ -18,7 +18,7 @@ X = df.drop(columns=["id", "vulnerability_type", "label_encoded"] + lang_cols)
 y_class = df["label_encoded"]
 
 # Generate continuous vulnerability risk scores (soft labels)
-log_reg = LogisticRegression(max_iter=1000, solver="lbfgs", n_jobs=-1)
+log_reg = LogisticRegression(max_iter=1000, solver="lbfgs", n_jobs=1)
 log_reg.fit(X, y_class)
 y = log_reg.predict_proba(X)[:, 1]
 

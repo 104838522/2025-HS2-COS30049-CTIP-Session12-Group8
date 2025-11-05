@@ -86,7 +86,7 @@ print(classification_report(y_test, y_pred))
 # -------------------------------------------------
 os.makedirs("./models", exist_ok=True)
 
-joblib.dump(scaler, "./models/scaler.joblib")
+joblib.dump(scaler, "./models/knn_scaler.joblib")
 joblib.dump(knn, "./models/knn_model.joblib")
 print("Saved scaler.joblib & knn_model.joblib inside backend/models")
 
