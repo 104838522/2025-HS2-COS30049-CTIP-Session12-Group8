@@ -83,7 +83,6 @@ print(classification_report(y_test, y_pred))
 
 # -------------------------------------------------
 # 8) Save Model and Scaler for FastAPI Inference
-# -------------------------------------------------
 os.makedirs("./models", exist_ok=True)
 
 joblib.dump(scaler, "./models/knn_scaler.joblib")
