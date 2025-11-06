@@ -27,6 +27,7 @@ import DatasetInfoPage from "./pages/DatasetInfoPage";
 import axios from "axios";
 //Data visualization components
 import ScoreBarChart  from "./components/ScoreBarChart";
+import ConfidencePieChart from "./components/ConfidencePieChart";
 
 
 // ===== VulnLocator Logo Text ===== 
@@ -366,78 +367,7 @@ function App() {
                 {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
 
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
-                  {/* ===== Analysis Result Area =====
-                  {analysisResult ? (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color:
-                            analysisResult.result === "Vulnerable"
-                              ? "error.main"
-                              : "success.main",
-                          fontWeight: 700,
-                          mb: 1,
-                        }}
-                      >
-                        {analysisResult.result === "Vulnerable"
-                          ? "Potentially vulnerable code detected!"
-                          : "No vulnerability detected!"}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mb: 1 }}>
-                        Confidence: {formatConfidence(analysisResult.confidence)}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mb: 2 }}>
-                        Processing time: {analysisResult.time}s
-                      </Typography>
 
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          Potentially vulnerable lines:
-                        </Typography>
-                        {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
-                          <Box
-                            component="ul"
-                            sx={{
-                              listStyle: "none",
-                              pl: 0,
-                              mt: 1,
-                              fontFamily: "monospace",
-                              fontSize: "0.9rem",
-                            }}
-                          >
-                            {analysisResult.highlights.map((h, i) => (
-                              <li
-                                key={i}
-                                style={{
-                                  backgroundColor:
-                                    h.score > 0.1
-                                      ? "rgba(255, 0, 0, 0.1)" // strong highlight for high score
-                                      : "rgba(255, 255, 0, 0.1)", // mild highlight for low score
-                                  marginBottom: "6px",
-                                  padding: "6px",
-                                  borderRadius: "4px",
-                                }}
-                              >
-                                <strong>Line {h.line}</strong> — score {h.score.toFixed(3)}
-                                <br />
-                                <code>{h.snippet}</code>
-                              </li>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" sx={{ mt: 1 }}>
-                            The model flagged the snippet overall but couldn&apos;t isolate specific
-                            lines with enough confidence. Review the full code context.
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      Submit a code snippet or upload a file to see analysis results here.
-                    </Typography>
-                  )} */}
                   {/* ===== Analysis Result Area =====*/}
                 {analysisResult ? (
                   <Box
@@ -463,8 +393,8 @@ function App() {
                         }}
                       >
                         {analysisResult.result === "Vulnerable"
-                          ? "Potentially vulnerable code detected!"
-                          : "No vulnerability detected!"}
+                          ? "Vulnerable: Potentially vulnerable code detected!"
+                          : "Safe: No vulnerability detected!"}
                       </Typography>
                       <Typography variant="body2" sx={{ mb: 1 }}>{/* ===== hereeeeeeeeeeeeeeeeeeeeeeeeeee ===== */}
                       </Typography>
@@ -526,6 +456,9 @@ function App() {
                       <ScoreBarChart data={analysisResult.highlights} />
                     </Box>
                     {/* ==Chart 2== */}
+                    <Box sx={{ flex: 1, minHeight: 350 }}>
+                      <ConfidencePieChart confidence={analysisResult.confidence} result={analysisResult.result}/>
+                    </Box>
                     {/* ==Chart 3== */}
                   </Box>
                 ) : (

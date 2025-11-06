@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import  { useRef, useEffect } from "react";
 import * as d3 from "d3";
 
 // This draws a bar chart for line level vulnerability scores.
