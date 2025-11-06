@@ -7,9 +7,9 @@ export default function HistoryConfidenceChart({ data }) {
   useEffect(() => {
     // Select SVG and clear previous drawings
     const svg = d3.select(ref.current);
-    svg.selectAll("*").remove();
+    svg.selectAll("g").transition().duration(400).style("opacity", 0).remove();
 
-    // Show message if  no data
+    // Show message if no data
     if (!Array.isArray(data) || data.length === 0) {
       svg
         .append("text")
@@ -70,6 +70,27 @@ export default function HistoryConfidenceChart({ data }) {
       .attr("stroke-width", 2)
       .attr("opacity", 0.85)
       .attr("d", line);
+    
+      
+    
+    // === Confidence threshold line (0.5) ===
+    chart
+      .append("line")
+      .attr("x1", 0)
+      .attr("x2", innerW)
+      .attr("y1", yScale(0.5))
+      .attr("y2", yScale(0.5))
+      .attr("stroke", "#888")
+      .attr("stroke-dasharray", "4 4")
+      .attr("opacity", 0.7);
+
+    chart
+      .append("text")
+      .attr("x", innerW - 90)
+      .attr("y", yScale(0.5) - 6)
+      .attr("fill", "#aaa")
+      .attr("font-size", "12px")
+      .text("Confidence = 0.5");
 
     // Create axes
     const xAxis = d3.axisBottom(xScale).tickFormat((d) => d);
@@ -90,7 +111,6 @@ export default function HistoryConfidenceChart({ data }) {
     chart.append("g").call(yAxis).selectAll("text").style("fill", "#ccc");
 
     // Add axis labels
-    // X label
     chart
       .append("text")
       .attr("x", innerW / 2)
@@ -99,7 +119,7 @@ export default function HistoryConfidenceChart({ data }) {
       .style("fill", "#ccc")
       .style("font-size", "13px")
       .text("Timestamp (Date + Time)");
-    // Y label 
+
     chart
       .append("text")
       .attr("transform", "rotate(-90)")
@@ -109,7 +129,7 @@ export default function HistoryConfidenceChart({ data }) {
       .style("fill", "#ccc")
       .style("font-size", "13px")
       .text("Confidence Score (0 to 1)");
-      //title
+
     chart
       .append("text")
       .attr("x", innerW / 2)
@@ -144,6 +164,35 @@ export default function HistoryConfidenceChart({ data }) {
       .attr("r", 5)
       .attr("fill", (d) => (d.result === "Vulnerable" ? "#e74c3c" : "#2ecc71"))
       .attr("opacity", 0.9);
+
+    // === Legend ===
+    const legend = svg.append("g").attr("transform", `translate(${width - 160}, 30)`);
+
+    const legendData = [
+      { label: "Vulnerable", color: "#e74c3c" },
+      { label: "Safe", color: "#2ecc71" },
+    ];
+
+    legend
+      .selectAll("rect")
+      .data(legendData)
+      .join("rect")
+      .attr("x", 0)
+      .attr("y", (_, i) => i * 20 - 15)
+      .attr("width", 12)
+      .attr("height", 12)
+      .attr("fill", (d) => d.color);
+
+    legend
+      .selectAll("text")
+      .data(legendData)
+      .join("text")
+      .attr("x", 20)
+      .attr("y", (_, i) => i * 20 -5)
+      .attr("fill", "#ccc")
+      .style("font-size", "12px")
+      .text((d) => d.label);
+
     //============================================================
     // Setting hit zones (=> click areas)
     const hitZones = [];
@@ -170,7 +219,7 @@ export default function HistoryConfidenceChart({ data }) {
       hitZones.push({ ...parsedData[i], x1, x2 });
     }
 
-    // Draw hit zones (easier hover and click)
+    // Draw hit zones (hover + click)
     chart
       .selectAll(".hit-zone")
       .data(hitZones)
@@ -183,13 +232,11 @@ export default function HistoryConfidenceChart({ data }) {
       .attr("fill", "transparent")
       .style("cursor", "pointer")
       .on("mouseover", (event, d) => {
-        // Highlight area
         d3.select(event.currentTarget)
           .transition()
           .duration(150)
           .attr("fill", "rgba(255, 255, 255, 0.08)");
 
-        // Enlarge selected dot
         d3.selectAll(".dot").attr("r", 5).attr("opacity", 0.8);
         chart
           .selectAll(".dot")
@@ -197,7 +244,6 @@ export default function HistoryConfidenceChart({ data }) {
           .attr("r", 8)
           .attr("opacity", 1);
 
-        // Show tooltip
         tooltip
           .style("opacity", 1)
           .html(
@@ -214,7 +260,6 @@ export default function HistoryConfidenceChart({ data }) {
           .style("top", `${event.pageY - 25}px`);
       })
       .on("mouseout", (event) => {
-        // Remove highlight and tooltip
         d3.select(event.currentTarget)
           .transition()
           .duration(150)
@@ -223,8 +268,7 @@ export default function HistoryConfidenceChart({ data }) {
         tooltip.style("opacity", 0);
       })
       .on("click", (_, d) => {
-        // Scroll to the corresponding record card
-        const target = document.getElementById(`history-${d.id}`);//I will set in HistoryPage.js
+        const target = document.getElementById(`history-${d.id}`);
         if (target) {
           target.scrollIntoView({ behavior: "smooth", block: "center" });
           target.style.transition = "background-color 0.8s ease";

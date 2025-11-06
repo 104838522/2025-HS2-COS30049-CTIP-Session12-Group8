@@ -1,17 +1,19 @@
-import  { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
-
-// This draws a bar chart for line level vulnerability scores.
 
 function ScoreBarChart({ data }) {
   const ref = useRef();
+  const [selectedLine, setSelectedLine] = useState(null); // Track selected bar
 
   useEffect(() => {
-    // Select SVG and clear previous content
+    // Reset selected line when new data arrives
+    setSelectedLine(null);
+
+    // Initialize SVG
     const svgBar = d3.select(ref.current);
     svgBar.selectAll("*").remove();
 
-    // Show message when no data
+    // Handle empty dataset
     if (!data || data.length === 0) {
       const width = svgBar.node()?.clientWidth || 600;
       const height = 300;
@@ -38,7 +40,7 @@ function ScoreBarChart({ data }) {
 
       svg.append("g").call(d3.axisLeft(y).ticks(5)).selectAll("text").style("fill", "#777");
 
-      // Message for empty data
+      // Message for empty state
       svg
         .append("text")
         .attr("x", innerW / 2)
@@ -50,23 +52,26 @@ function ScoreBarChart({ data }) {
       return;
     }
 
-    // Draw chart when data exists
+    // Draw chart if data exists
     drawChart(data);
-  }, [data]);
 
+    // Cleanup tooltips
+    return () => {
+      d3.selectAll(".vuln-tooltip").remove();
+    };
+  }, [data]);
+  //==================================================================
   const drawChart = (data) => {
-    // Select SVG and clear
     const svgBar = d3.select(ref.current);
     svgBar.selectAll("*").remove();
 
-    // Set up dimensions
+    // Chart dimensions
     const width = svgBar.node().clientWidth || 800;
     const height = 300;
-    const margin = { top: 30, right: 30, bottom: 50, left: 60 };
+    const margin = { top: 30, right: 30, bottom: 60, left: 60 };
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
 
-    // Create main group
     const svg = svgBar
       .attr("width", width)
       .attr("height", height)
@@ -74,14 +79,14 @@ function ScoreBarChart({ data }) {
       .append("g")
       .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-    // X scale (line numbers)
+    // X axis (line numbers)
     const x = d3
       .scaleBand()
       .domain(data.map((d) => String(d.line)))
       .range([0, innerW])
-      .padding(0.2);
+      .padding(0.25);
 
-    // Y scale (score values)
+    // Y axis (vulnerability scores)
     const maxScore = d3.max(data, (d) => d.score) || 0.1;
     const y = d3
       .scaleLinear()
@@ -89,10 +94,10 @@ function ScoreBarChart({ data }) {
       .nice()
       .range([innerH, 0]);
 
-    // Color scale (red gradient)
+    // Color scale
     const color = d3.scaleSequential(d3.interpolateReds).domain([0, 1]);
 
-    // Tooltip box
+    // Tooltip setup
     const tooltip = d3
       .select("body")
       .selectAll(".vuln-tooltip")
@@ -100,16 +105,16 @@ function ScoreBarChart({ data }) {
       .join("div")
       .attr("class", "vuln-tooltip")
       .style("position", "absolute")
-      .style("background", "#333")
+      .style("background", "rgba(30,30,30,0.9)")
       .style("color", "#fff")
       .style("padding", "6px 10px")
-      .style("border-radius", "4px")
-      .style("font-size", "12px")
+      .style("border-radius", "6px")
+      .style("font-size", "13px")
       .style("pointer-events", "none")
       .style("opacity", 0);
 
     // Draw bars
-    svg
+    const bars = svg
       .selectAll("rect")
       .data(data)
       .join("rect")
@@ -118,38 +123,71 @@ function ScoreBarChart({ data }) {
       .attr("y", innerH)
       .attr("height", 0)
       .attr("fill", (d) => color(d.score))
-      // Mouse events for tooltip
-      .on("mouseover", (event, d) => {
+      .style("cursor", "pointer");
+
+    // Hover interaction
+    bars
+      .on("mousemove", function (event, d) {
+        svg.selectAll("rect").attr("fill", (b) => color(b.score));
+        d3.select(this).attr("fill", "#ff7675").attr("opacity", 0.9);
         tooltip
           .style("opacity", 1)
-          .html(
-            `Line ${d.line}<br/>Score: ${(d.score * 100).toFixed(1)}%<br/>${d.snippet}`
-          )
-          .style("left", event.pageX + 10 + "px")
-          .style("top", event.pageY - 20 + "px");
+          .html(`Line ${d.line}<br/>Score: ${(d.score * 100).toFixed(1)}%`)
+          .style("left", event.pageX + 12 + "px")
+          .style("top", event.pageY - 28 + "px");
       })
-      .on("mousemove", (event) => {
-        tooltip
-          .style("left", event.pageX + 10 + "px")
-          .style("top", event.pageY - 20 + "px");
+      .on("mouseout", function () {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr("fill", (d) => color(d.score))
+          .attr("opacity", 1);
+        tooltip.transition().duration(150).style("opacity", 0);
       })
-      .on("mouseout", () => tooltip.style("opacity", 0))
-      // Bar animation
+      .on("click", function (event, d) {
+        // Select or deselect a bar
+        setSelectedLine((prev) => (prev && prev.line === d.line ? null : d));
+      });
+
+    // Animate bars on load
+    bars
       .transition()
       .duration(700)
+      .delay((_, i) => i * 40)
       .attr("y", (d) => y(d.score))
       .attr("height", (d) => innerH - y(d.score));
 
-    // Draw X axis
+    // Numeric labels on top
+    svg
+      .selectAll(".bar-label")
+      .data(data)
+      .join("text")
+      .attr("class", "bar-label")
+      .attr("x", (d) => x(String(d.line)) + x.bandwidth() / 2)
+      .attr("y", (d) => y(d.score) - 5)
+      .attr("text-anchor", "middle")
+      .style("fill", "#eee")
+      .style("font-size", "11px")
+      .text((d) => `${(d.score * 100).toFixed(1)}%`);
+
+    // X axis
     svg
       .append("g")
       .attr("transform", `translate(0, ${innerH})`)
       .call(d3.axisBottom(x))
       .selectAll("text")
-      .style("fill", "#ccc");
+      .style("fill", "#ccc")
+      .style("font-size", "13px")
+      .style("font-weight", "600")
+      .attr("dy", "1.5em");
 
-    // Draw Y axis
-    svg.append("g").call(d3.axisLeft(y).ticks(5)).selectAll("text").style("fill", "#ccc");
+    // Y axis
+    svg
+      .append("g")
+      .call(d3.axisLeft(y).ticks(5))
+      .selectAll("text")
+      .style("fill", "#ccc")
+      .style("font-size", "12px");
 
     // Chart title
     svg
@@ -165,10 +203,11 @@ function ScoreBarChart({ data }) {
     svg
       .append("text")
       .attr("x", innerW / 2)
-      .attr("y", innerH + 40)
+      .attr("y", innerH + 50)
       .attr("text-anchor", "middle")
       .style("fill", "#ccc")
-      .style("font-size", "12px")
+      .style("font-size", "14px")
+      .style("font-weight", "700")
       .text("Line Number");
 
     // Y axis label
@@ -179,20 +218,46 @@ function ScoreBarChart({ data }) {
       .attr("y", -45)
       .attr("text-anchor", "middle")
       .style("fill", "#ccc")
-      .style("font-size", "12px")
+      .style("font-size", "14px")
+      .style("font-weight", "700")
       .text("Vulnerability Score");
   };
 
-  // Return SVG element
+  // Render SVG and detail panel
   return (
-    <svg
-      ref={ref}
-      style={{
-        width: "100%",
-        height: 300,
-        display: "block",
-      }}
-    />
+    <div>
+      <svg
+        ref={ref}
+        style={{
+          width: "100%",
+          height: 300,
+          display: "block",
+        }}
+      />
+      {/* Detail panel for selected line */}
+      {selectedLine && (
+        <div
+          style={{
+            background: "#1e1e1e",
+            color: "#fff",
+            padding: "10px 15px",
+            borderRadius: "8px",
+            marginTop: "10px",
+            fontFamily: "monospace",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          <strong>Line {selectedLine.line}</strong> —{" "}
+          <span style={{ color: "#ccc" }}>
+            Score: {(selectedLine.score * 100).toFixed(1)}%
+          </span>
+          <pre style={{ marginTop: "8px", color: "#9cdcfe" }}>
+            {selectedLine.snippet}
+          </pre>
+        </div>
+      )}
+    </div>
   );
 }
 
