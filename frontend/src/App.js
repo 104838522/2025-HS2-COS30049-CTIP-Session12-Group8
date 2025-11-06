@@ -25,9 +25,11 @@ import SettingsDialog from "./components/SettingsDialog";
 import { useAuth } from "./context/AuthContext";
 import DatasetInfoPage from "./pages/DatasetInfoPage";
 import axios from "axios";
-import { text } from "d3";
+//Data visualization components
+import ScoreBarChart  from "./components/ScoreBarChart";
 
-// ===== VulnLocator Logo Text =====
+
+// ===== VulnLocator Logo Text ===== 
 function LogoText({ small, size }) {
   const variant = small ? "subtitle2" : size === "large" ? "h5" : "h6";
   const px = small ? 1.5 : size === "large" ? 4 : 2.5;
@@ -364,7 +366,7 @@ function App() {
                 {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
 
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
-                  {/* ===== Analysis Result Area =====*/}
+                  {/* ===== Analysis Result Area =====
                   {analysisResult ? (
                     <Box sx={{ mt: 3 }}>
                       <Typography
@@ -435,7 +437,102 @@ function App() {
                     <Typography variant="body2" color="text.secondary">
                       Submit a code snippet or upload a file to see analysis results here.
                     </Typography>
-                  )}
+                  )} */}
+                  {/* ===== Analysis Result Area =====*/}
+                {analysisResult ? (
+                  <Box
+                    sx={{
+                      mt: 3,
+                      display: "flex",
+                      flexDirection: "row",
+                      gap: 3,
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    {/* ===== Left: Line-by-line result ===== */}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color:
+                            analysisResult.result === "Vulnerable"
+                              ? "error.main"
+                              : "success.main",
+                          fontWeight: 700,
+                          mb: 1,
+                        }}
+                      >
+                        {analysisResult.result === "Vulnerable"
+                          ? "Potentially vulnerable code detected!"
+                          : "No vulnerability detected!"}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>{/* ===== hereeeeeeeeeeeeeeeeeeeeeeeeeee ===== */}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 2 }}>
+                        Processing time: {analysisResult.time}s
+                      </Typography>
+
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                          Potentially vulnerable lines:
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                        *Score = the change in the model’s vulnerability probability when that line is removed (Δ probability).
+                      </Typography>
+                        {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
+                          <Box
+                            component="ul"
+                            sx={{
+                              listStyle: "none",
+                              pl: 0,
+                              mt: 1,
+                              fontFamily: "monospace",
+                              fontSize: "0.9rem",
+                              maxHeight: "400px",
+                              overflowY: "auto",
+                            }}
+                          >
+                            {analysisResult.highlights.map((h, i) => (
+                              <li
+                                key={i}
+                                style={{
+                                  backgroundColor:
+                                    h.score > 0.1
+                                      ? "rgba(255, 0, 0, 0.1)"
+                                      : "rgba(255, 255, 0, 0.1)",
+                                  marginBottom: "6px",
+                                  padding: "6px",
+                                  borderRadius: "4px",
+                                }}
+                              >
+                                <strong>Line {h.line}</strong> — score {h.score.toFixed(3)}
+                                <br />
+                                <code>{h.snippet}</code>
+                              </li>
+                            ))}
+                          </Box>
+                        ) : (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            The model flagged the snippet overall but couldn’t isolate specific
+                            lines with enough confidence.
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+
+                    {/* ===== Right: Chart Component ===== */}
+                    {/* ==Chart 1== */}
+                    <Box sx={{ flex: 1, minHeight: 350 }}>
+                      <ScoreBarChart data={analysisResult.highlights} />
+                    </Box>
+                    {/* ==Chart 2== */}
+                    {/* ==Chart 3== */}
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Submit a code snippet or upload a file to see analysis results here.
+                  </Typography>
+                )}
                 </Box>
 
                 {/* ===== Input Area ===== */}

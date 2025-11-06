@@ -607,7 +607,7 @@ def delete_history(request: Request, db=Depends(get_db)):
 
 
 # ------------------------------------------------------------
-# Visualization endpoints
+# Visualization endpoints => by Will
 # ------------------------------------------------------------
 
 
@@ -668,30 +668,4 @@ def get_all_visualization_data():
         raise HTTPException(status_code=501, detail="Dataset not loaded.")
     return prepare_visualization_payload(DATAFRAME)
 
-#==For summary stats & Data Visualization==========================================
 
-@app.get("/api/stats/summary")
-def get_summary_stats():
-    """
-    Summarize total Safe/Vulnerable counts and time-based confidence trend.
-    """
-    safe_count, vuln_count = 0, 0
-    trend_data = []
-
-    for email, records in HISTORY.items():
-        for record in records:
-            if record["result"] == "Safe":
-                safe_count += 1
-            else:
-                vuln_count += 1
-            trend_data.append({
-                "timestamp": record["timestamp"],
-                "confidence": record["confidence"],
-                "result": record["result"]
-            })
-
-    return {
-        "safe_count": safe_count,
-        "vulnerable_count": vuln_count,
-        "trend_data": trend_data
-    }
