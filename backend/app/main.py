@@ -10,7 +10,7 @@ from app.api.v1.endpoints import auth, analyze, history, user, visualization
 app = FastAPI(title="VulnLocator AI API")
 
 # ------------------------------------------------------------
-# Step 2. Configure CORS (for React frontend connection)
+# Step 2. Configure CORS (for React frontend connection)..
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
