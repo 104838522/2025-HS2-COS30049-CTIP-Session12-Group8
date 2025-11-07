@@ -26,8 +26,8 @@ import { useAuth } from "./context/AuthContext";
 import DatasetInfoPage from "./pages/DatasetInfoPage";
 import axios from "axios";
 //Data visualization components
-import ScoreBarChart  from "./components/ScoreBarChart";
-import ConfidencePieChart from "./components/ConfidencePieChart";
+import ScoreBarChart  from "./components/charts/ScoreBarChart";
+import ConfidencePieChart from "./components/charts/ConfidencePieChart";
 
 
 // ===== VulnLocator Logo Text ===== 

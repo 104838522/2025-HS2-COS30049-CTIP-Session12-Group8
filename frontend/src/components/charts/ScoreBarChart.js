@@ -222,7 +222,7 @@ function ScoreBarChart({ data }) {
       .style("font-weight", "700")
       .text("Vulnerability Score");
   };
-
+  //==================================================================
   // Render SVG and detail panel
   return (
     <div>

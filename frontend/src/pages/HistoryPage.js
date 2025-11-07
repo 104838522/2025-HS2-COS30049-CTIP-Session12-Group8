@@ -1,7 +1,4 @@
-// HistoryPage.js
-// Role: Displays past AI analysis results, supports data sorting, and allows clearing all records.
-
-import React, { useEffect, useState, useMemo } from 'react';
+import  { useEffect, useState, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -15,7 +12,7 @@ import {
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
-import HistoryConfidenceChart from "../components/HistoryConfidenceChart";
+import HistoryConfidenceChart from "../components/charts/HistoryConfidenceChart";
 // *two API requests: fetch history and delete history.
 
 export default function HistoryPage() {
