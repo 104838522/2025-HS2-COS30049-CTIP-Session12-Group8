@@ -1,5 +1,5 @@
-# ------------------------------------------------------------
-# Step 8. Load trained AI components
+# ------ Load trained AI components
+import os
 import joblib
 import pandas as pd
 import numpy as np
@@ -8,6 +8,7 @@ from sklearn.exceptions import InconsistentVersionWarning
 
 warnings.filterwarnings("ignore", category=InconsistentVersionWarning)
 
+# Load trained model components
 try:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     MODEL_DIR = os.path.join(BASE_DIR, "../../ml_models")

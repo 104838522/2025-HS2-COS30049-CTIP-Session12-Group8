@@ -1,8 +1,7 @@
 import time
 from fastapi import Request
 
-# ------------------------------------------------------------
-# Step 3. Request timing middleware
+# ------- Request timing middleware
 async def log_requests(request: Request, call_next):
     start_time = time.time()
     response = await call_next(request)

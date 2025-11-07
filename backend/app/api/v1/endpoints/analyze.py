@@ -1,5 +1,4 @@
-# ------------------------------------------------------------
-# Step 10. Analyze (AI Prediction)
+# Endpoint - Analyze (AI Prediction)
 from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, Depends
 import time, traceback
 import numpy as np
@@ -11,13 +10,11 @@ from app.models.schemas import AnalyzeOut
 
 router = APIRouter()
 
-# ---------- Helper: predict probability/score (works for KNN or RF) ----------
+# ---------- Helper function for analyze: predict probability/score (works for KNN or RF) ----------
 def predict_score_from_text(text: str, model_name: str = "knn"):
     """
     Return a single score for the given code text.
-    - For KNN (classification) return the max probability (0..1) if available.
-    - For RF (regression) return the predicted risk score (assumed 0..1).
-    - If the required model/scaler/vectorizer is not available, return None.
+    If the required model/scaler/vectorizer is not available, return None.
     """
     try:
         proc = preprocess_code(text)
@@ -175,7 +172,7 @@ def locate_vulnerable_regions(raw_code: str, model_name: str = "knn", top_funcs:
     return out
 
 
-# ---------- Updated analyze endpoint ----------
+# ---------- Endpoint: Updated analyze endpoint ----------
 @router.post("/analyze", response_model=AnalyzeOut)
 async def analyze(
     request: Request,

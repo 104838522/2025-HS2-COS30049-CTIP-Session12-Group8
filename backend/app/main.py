@@ -1,3 +1,4 @@
+#Entry point for FastAPI application
 # ------------------------------------------------------------
 # Step 1. Initialize FastAPI
 from fastapi import FastAPI

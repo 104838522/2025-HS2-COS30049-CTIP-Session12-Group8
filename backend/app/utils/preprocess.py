@@ -1,6 +1,4 @@
-# --------------------------------------------------------------------
-# Preprocessing function for FastAPI integration
-# --------------------------------------------------------------------
+# ------------ Preprocessing function for FastAPI integration
 import re
 
 def preprocess_code(raw_code: str) -> str:

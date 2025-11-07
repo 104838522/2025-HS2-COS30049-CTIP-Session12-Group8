@@ -1,13 +1,11 @@
-# ------------------------------------------------------------
-# Step 11 & 13. Retrieve user history + Delete all history
+# Endpoint - Retrieve user history + Delete all history
 from fastapi import APIRouter, Request, Depends, HTTPException
 from app.core.helpers import get_db, authenticate_token
 from app.db.memory_db import HISTORY, USERS
 
 router = APIRouter()
 
-# ------------------------------------------------------------
-# Step 11. Retrieve user history (used by HistoryPage.js)
+# ---------- Endpoint: Retrive history of only current user ----------  (used by HistoryPage.js)
 @router.get("/")
 def get_history(request: Request, db=Depends(get_db)):
     # Step 1. Extract token from header
@@ -31,8 +29,7 @@ def get_history(request: Request, db=Depends(get_db)):
     return {"email": email, "total_records": len(user_history), "history": user_history}
 
 
-# ------------------------------------------------------------
-# Step 13. Delete all analysis history for the authenticated user (DELETE method)
+# ---------Endpoint: Delete all analysis history for the authenticated user (DELETE method)
 @router.delete("/delete")
 def delete_history(request: Request, db=Depends(get_db)):
     """

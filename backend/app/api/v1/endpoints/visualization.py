@@ -1,27 +1,10 @@
-# app/api/v1/endpoints/visualization.py
+# Endpoint - Visualization data( only static )endpoints
 from fastapi import APIRouter, HTTPException
 import pandas as pd
 
 router = APIRouter()
 
-@router.get("/visualization")
-def get_visualization_data():
-    """Get language distribution from dataset."""
-    try:
-        df = pd.read_csv("./data/processed_dataset_final.csv", low_memory=False)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to load dataset: {str(e)}")
-    lang_cols = [col for col in df.columns if col.startswith("lang_")]
-    result = [{"language": col.replace("lang_", ""), "count": int(df[df[col] > 0].shape[0])} for col in lang_cols]
-    return {"language_distribution": result}
-# ------------------------------------------------------------
-# Visualization endpoints => by Will
-# ------------------------------------------------------------
-from fastapi import APIRouter, HTTPException
-import pandas as pd
-
-router = APIRouter()
-
+# ---------- Compute Token Frequency ----------
 def compute_token_frequency(df):
     """Count how many SAFE (0) and VULNERABLE (1) samples contain each token (weight > 0)."""
 
@@ -39,7 +22,7 @@ def compute_token_frequency(df):
 
     return sorted(result, key=lambda x: x["vulnerable"], reverse=True)
 
-
+# ---------- Compute Language Distribution ----------
 def compute_language_distribution(df):
     """Compute distribution of programming languages in the dataset."""
 
@@ -54,14 +37,14 @@ def compute_language_distribution(df):
 
     return result
 
-
+# ---------- Prepare Visualization Payload ----------
 def prepare_visualization_payload(df):
     return {
         "token_frequency": compute_token_frequency(df),
         "language_distribution": compute_language_distribution(df),
     }
 
-
+# ---------- Endpoint: Get all visualization data ----------
 @router.get("/")
 def get_all_visualization_data():
     try:

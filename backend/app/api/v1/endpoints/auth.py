@@ -1,5 +1,4 @@
-# ------------------------------------------------------------
-# Step 9. Authentication endpoints
+# Endpoint - Authentication endpoints
 from fastapi import APIRouter, Depends, HTTPException, Request
 from app.core.helpers import get_db, _generate_token, authenticate_token
 from app.models.schemas import SignupIn, LoginIn, UpdateUserIn
@@ -7,6 +6,7 @@ from app.db.memory_db import USERS, TOKENS
 
 router = APIRouter()
 
+# ---------- Endpoint: Signup ----------
 @router.post("/signup")
 def signup(payload: SignupIn, db=Depends(get_db)):
     if payload.email in USERS:
@@ -24,7 +24,7 @@ def signup(payload: SignupIn, db=Depends(get_db)):
         "user": {"id": user_id, "name": payload.name, "email": payload.email},
     }
 
-
+# ---------- Endpoint: Login ----------
 @router.post("/login")
 def login(payload: LoginIn, db=Depends(get_db)):
     user = USERS.get(payload.email)

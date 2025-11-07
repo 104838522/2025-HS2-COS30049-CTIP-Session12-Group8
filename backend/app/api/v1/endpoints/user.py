@@ -1,5 +1,4 @@
-# ------------------------------------------------------------
-# Step 12. Update user profile (PUT method using BaseModel)
+# Endpoint: Update user profile (PUT method using BaseModel)
 from fastapi import APIRouter, Request, Depends, HTTPException
 from app.core.helpers import get_db, authenticate_token
 from app.models.schemas import UpdateUserIn
@@ -7,6 +6,7 @@ from app.db.memory_db import USERS
 
 router = APIRouter()
 
+# ---------- Endpoint: Update user profile ----------
 @router.put("/update")
 def update_user(
     request: Request, payload: UpdateUserIn, db=Depends(get_db)  # Receive as JSON body

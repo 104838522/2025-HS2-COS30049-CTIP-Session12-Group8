@@ -60,6 +60,6 @@ if os.path.exists(dst_vec):
     print("vectorizer.joblib already exists. Skipping copy.")
 elif os.path.exists(src_vec):
     shutil.copy(src_vec, dst_vec)
-    print("Copied vectorizer.pkl → vectorizer.joblib in same folder.")
+    print("Copied vectorizer.pkl -> vectorizer.joblib in same folder.")
 else:
     print("vectorizer.pkl not found. Make sure dataprocess.py was run before training.")
