@@ -3,15 +3,16 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="${BACKEND_DIR:-$ROOT_DIR/backend}"
+BACKEND_APP_DIR="${BACKEND_APP_DIR:-$BACKEND_DIR/app}"
 FRONTEND_DIR="${FRONTEND_DIR:-$ROOT_DIR/frontend}"
 UVICORN_CMD="${UVICORN_CMD:-uvicorn}"
-UVICORN_APP="${UVICORN_APP:-main:app}"
+UVICORN_APP="${UVICORN_APP:-app.main:app}"
 BACKEND_HOST="${BACKEND_HOST:-0.0.0.0}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 NPM_CMD="${NPM_CMD:-npm}"
 
-if [[ ! -f "$BACKEND_DIR/main.py" ]]; then
-  echo "Cannot find main.py in $BACKEND_DIR" >&2
+if [[ ! -f "$BACKEND_APP_DIR/main.py" ]]; then
+  echo "Cannot find main.py in $BACKEND_APP_DIR" >&2
   exit 1
 fi
 

@@ -13,7 +13,7 @@ export default function KnowledgePage() {
     <Container>
       {/* Page Title */}
       <Typography variant="h3" component="h1" gutterBottom>
-        Knowledge Base
+        Interactive Dataset Visualisations
       </Typography>
 
       {/* Welcome Message Section */}
@@ -22,11 +22,11 @@ export default function KnowledgePage() {
           <CardContent>
             {user ? (
               <Typography variant="body1">
-                Welcome {user.name || user.email}! Explore articles and resources here.
+                Welcome {user.name || user.email}! Explore the interactive dataset visualisations.
               </Typography>
             ) : (
               <Typography variant="body1">
-                This is the knowledge base. Sign in to see personalised recommendations.
+                This is the interactive dataset visualisations page.
               </Typography>
             )}
           </CardContent>

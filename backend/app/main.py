@@ -1,4 +1,4 @@
-#Entry point for FastAPI application
+# Entry point for FastAPI application
 # ------------------------------------------------------------
 # Step 1. Initialize FastAPI
 from fastapi import FastAPI
@@ -33,4 +33,6 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(analyze.router, prefix="/api", tags=["Analysis"])
 app.include_router(history.router, prefix="/api/history", tags=["History"])
 app.include_router(user.router, prefix="/api/user", tags=["User"])
-app.include_router(visualization.router, prefix="/api/visualization", tags=["Visualization"])
+app.include_router(
+    visualization.router, prefix="/api/visualization", tags=["Visualization"]
+)
