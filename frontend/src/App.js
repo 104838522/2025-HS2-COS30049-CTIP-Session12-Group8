@@ -95,12 +95,12 @@ function App() {
   const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
 
-  const formatConfidence = (value) => {
-    if (typeof value === "number" && !Number.isNaN(value)) {
-      return `${(value * 100).toFixed(1)}%`;
-    }
-    return "N/A";
-  };
+  // const formatConfidence = (value) => {
+  //   if (typeof value === "number" && !Number.isNaN(value)) {
+  //     return `${(value * 100).toFixed(1)}%`;
+  //   }
+  //   return "N/A";
+  // };
 
   // ===== Drawer Toggle =====
   const toggleDrawer = (open) => (event) => {

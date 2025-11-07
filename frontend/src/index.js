@@ -4,7 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import LoginOverlay from './components/LoginOverlay';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import theme from './utils/theme';
 import CssBaseline from '@mui/material/CssBaseline';
 

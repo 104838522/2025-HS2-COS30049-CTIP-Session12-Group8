@@ -1,5 +1,5 @@
 // Moved from src/LogoutPage.js
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
