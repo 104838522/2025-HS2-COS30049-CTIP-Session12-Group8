@@ -25,6 +25,7 @@ class AnalyzeOut(BaseModel):
     confidence: Optional[float]
     processing_time_sec: float
     timestamp: str
+    content_hash: str
     highlights: Optional[List[dict]] = None
 
 

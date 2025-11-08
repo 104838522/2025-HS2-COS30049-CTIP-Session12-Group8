@@ -1,4 +1,4 @@
-import  { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   Container,
   Typography,
@@ -40,7 +40,7 @@ export default function HistoryPage() {
         const res = await axios.get("http://127.0.0.1:8000/api/history", {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setHistory(res.data.history || []);
+        setHistory(res?.data?.history || []);
       } catch (err) {
         console.error("Error fetching history:", err);
         setError("Failed to load analysis history.");
@@ -62,7 +62,7 @@ export default function HistoryPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setHistory([]); // Instantly clear local UI
-      setMessage(res.data.message);
+      setMessage(res?.data?.message || "History cleared.");
       setError('');
     } catch (err) {
       const msg =
@@ -83,11 +83,11 @@ export default function HistoryPage() {
     if (sortType === "high") {
       // Sort descending by confidence
       return copy.sort((a, b) => b.confidence - a.confidence);
-    } 
+    }
     else if (sortType === "low") {
       // Sort ascending by confidence
       return copy.sort((a, b) => a.confidence - b.confidence);
-    } 
+    }
     else {
       // Sort by timestamp (default)
       return copy.sort(
@@ -206,6 +206,9 @@ export default function HistoryPage() {
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1 }}>
                   Processing time: {entry.processing_time_sec} sec
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Submission hash (MD5): {entry.content_hash || "Unavailable"}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                   Timestamp: {entry.timestamp}

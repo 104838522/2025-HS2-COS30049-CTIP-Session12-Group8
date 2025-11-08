@@ -1,4 +1,4 @@
-// Moved from src/LogoutPage.js
+// LogoutPage.js - shows a spinner while AuthContext is cleared, then redirects home.
 import { useEffect } from 'react';
 import { Container, Typography, Box, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
@@ -9,14 +9,14 @@ export default function LogoutPage() {
     const { logout } = useAuth();
 
     useEffect(() => {
-        // Simulate logout action: clear any auth (placeholder)
+        // Gentle spinner delay so the user sees feedback before theyre kicked home.
         const t = setTimeout(() => {
             // Clear user state via AuthContext
             logout && logout();
             navigate('/');
         }, 1200);
         return () => clearTimeout(t);
-    }, [navigate]);
+    }, [navigate, logout]);
 
     return (
         <Container>

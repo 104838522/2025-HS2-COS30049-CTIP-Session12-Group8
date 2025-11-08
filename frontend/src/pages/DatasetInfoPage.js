@@ -1,3 +1,5 @@
+// DatasetInfoPage.js
+// Provides a tabbed PDF viewer for the data-collection/processing/analysis briefs.
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Container,
@@ -9,6 +11,7 @@ import {
   LinearProgress,
 } from "@mui/material";
 
+// Static metadata describing each PDF available in the UI tabs.
 const TAB_CONFIG = [
   {
     label: "Data Collection",
@@ -24,6 +27,7 @@ const TAB_CONFIG = [
   },
 ];
 
+// Small helper that wraps <iframe> styling so each PDF feels native to the UI.
 const PdfViewer = ({ src }) => (
   <Box
     sx={{
@@ -52,6 +56,7 @@ export default function DatasetInfoPage() {
 
   const activeConfig = useMemo(() => TAB_CONFIG[tab], [tab]);
 
+  // Every tab switch re-validates that the PDF exists before attempting to embed it.
   useEffect(() => {
     let cancelled = false;
     setPdfReady(false);

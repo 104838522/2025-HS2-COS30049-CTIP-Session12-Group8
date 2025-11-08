@@ -1,3 +1,6 @@
+// LoginOverlay.js
+// Blocking overlay that handles email/password auth (login + signup) before
+// letting users interact with the rest of the app.
 import React, { useState } from "react";
 import {
   Box,
@@ -32,12 +35,13 @@ export default function LoginOverlay() {
   const [signupLoading, setSignupLoading] = useState(false);
   const [signupSuccess, setSignupSuccess] = useState(false);
 
+  // Hide the overlay entirely once the user has an active session.
   if (user) return null;
 
   const sanitize = (str) => String(str).replace(/[<>"'`]/g, "").trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  // login
+  // login (happy path only, errors handled simply)
   const handleLogin = async () => {
     setError(null);
     const cleanEmail = sanitize(email);
@@ -62,7 +66,7 @@ export default function LoginOverlay() {
     }
   };
 
-  // signup
+  // signup (happy path only, errors handled simply)
   const handleSignup = async () => {
     setSignupError(null);
     const name = sanitize(signupName);

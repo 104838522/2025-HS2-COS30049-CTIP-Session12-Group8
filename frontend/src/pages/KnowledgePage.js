@@ -22,11 +22,11 @@ export default function KnowledgePage() {
           <CardContent>
             {user ? (
               <Typography variant="body1">
-                Welcome {user.name || user.email}! Explore the interactive dataset visualisations.
+                Welcome {user.name || user.email}! Explore the dataset visualisations.
               </Typography>
             ) : (
               <Typography variant="body1">
-                This is the interactive dataset visualisations page.
+                This is the dataset visualisations page.
               </Typography>
             )}
           </CardContent>

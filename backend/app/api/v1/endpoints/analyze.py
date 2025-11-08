@@ -1,6 +1,7 @@
 # Endpoint - Analyze (AI Prediction)
 from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, Depends
 import time, traceback
+import hashlib
 import numpy as np
 import pandas as pd
 from app.utils.preprocess import preprocess_code
@@ -9,6 +10,7 @@ from app.core.helpers import get_db, authenticate_token, _save_history
 from app.models.schemas import AnalyzeOut
 
 router = APIRouter()
+
 
 # ---------- Helper function for analyze: predict probability/score (works for KNN or RF) ----------
 def predict_score_from_text(text: str, model_name: str = "knn"):
@@ -109,7 +111,13 @@ def simple_function_split(lines):
 
 
 # ---------- Main locator ----------
-def locate_vulnerable_regions(raw_code: str, model_name: str = "knn", top_funcs: int = 3, top_lines: int = 5, base_score: float = None):
+def locate_vulnerable_regions(
+    raw_code: str,
+    model_name: str = "knn",
+    top_funcs: int = 3,
+    top_lines: int = 5,
+    base_score: float = None,
+):
     """
     Identify lines that reduce the model score when removed.
     - model_name: "knn" or "rf"
@@ -158,7 +166,9 @@ def locate_vulnerable_regions(raw_code: str, model_name: str = "knn", top_funcs:
                 continue
             score_val = round(sc, 6)
             if sc >= MIN_LINE_SCORE:
-                highlights.append({"line": idx + 1, "score": score_val, "snippet": line_text})
+                highlights.append(
+                    {"line": idx + 1, "score": score_val, "snippet": line_text}
+                )
 
     highlights.sort(key=lambda x: x["score"], reverse=True)
     seen = set()
@@ -185,9 +195,14 @@ async def analyze(
     if not code and not file:
         raise HTTPException(status_code=400, detail="No input provided (code or file).")
     try:
-        raw_code = (await file.read()).decode("utf-8", errors="ignore") if file else code
+        raw_code = (
+            (await file.read()).decode("utf-8", errors="ignore") if file else code
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File read failed: {str(e)}")
+
+    # Generate a deterministic hash of the submitted content for history/reference
+    content_hash = hashlib.md5(raw_code.encode("utf-8", errors="ignore")).hexdigest()
 
     try:
         processed = preprocess_code(raw_code)
@@ -208,7 +223,11 @@ async def analyze(
     try:
         if model == "knn":
             pred = int(KNN.predict(X_scaled)[0])
-            proba = float(KNN.predict_proba(X_scaled).max()) if hasattr(KNN, "predict_proba") else None
+            proba = (
+                float(KNN.predict_proba(X_scaled).max())
+                if hasattr(KNN, "predict_proba")
+                else None
+            )
             result_label = "Vulnerable" if pred == 1 else "Safe"
             confidence = proba
             base_score = proba if proba is not None else float(pred)
@@ -225,9 +244,19 @@ async def analyze(
 
     MIN_CONF_TO_EXPLAIN = 0.35
     highlights = []
-    if base_score is not None and result_label == "Vulnerable" and base_score >= MIN_CONF_TO_EXPLAIN:
+    if (
+        base_score is not None
+        and result_label == "Vulnerable"
+        and base_score >= MIN_CONF_TO_EXPLAIN
+    ):
         try:
-            highlights = locate_vulnerable_regions(raw_code, model_name=model, top_funcs=2, top_lines=5, base_score=base_score)
+            highlights = locate_vulnerable_regions(
+                raw_code,
+                model_name=model,
+                top_funcs=2,
+                top_lines=5,
+                base_score=base_score,
+            )
         except Exception as e:
             print("locate_vulnerable_regions failed:", e)
             highlights = []
@@ -242,6 +271,7 @@ async def analyze(
         confidence=confidence,
         processing_time_sec=elapsed,
         timestamp=timestamp,
+        content_hash=content_hash,
         highlights=highlights,
     )
 

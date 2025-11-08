@@ -1,3 +1,6 @@
+// index.js
+// Entrypoint that bootstraps the React tree, wires up routing, theming,
+// and authentication context before rendering <App />.
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
@@ -12,8 +15,10 @@ import CssBaseline from '@mui/material/CssBaseline';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <ThemeProvider theme={theme}>
+    {/* CssBaseline + ThemeProvider give a consistent MUI surface */}
     <CssBaseline />
     <BrowserRouter>
+      {/* AuthProvider exposes token/user helpers to everything inside App */}
       <AuthProvider>
         <App />
         <LoginOverlay />

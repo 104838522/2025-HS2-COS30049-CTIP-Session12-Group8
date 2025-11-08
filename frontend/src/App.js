@@ -1,7 +1,10 @@
+// App.js
+// Main application shell that renders navigation,
+// page routes, and the ML analysis workflow.
 import React, { useState, useRef } from "react";
 import { Route, Routes, Link, useLocation } from "react-router-dom";
 import {
-  AppBar, Toolbar, Typography, Container, Button, Box,
+  AAppBar, Toolbar, Typography, Container, Card, CardContent, Button, Box,
   Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions, CircularProgress, LinearProgress,
@@ -26,7 +29,7 @@ import { useAuth } from "./context/AuthContext";
 import DatasetInfoPage from "./pages/DatasetInfoPage";
 import axios from "axios";
 //Data visualization components
-import ScoreBarChart  from "./components/charts/ScoreBarChart";
+import ScoreBarChart from "./components/charts/ScoreBarChart";
 import ConfidencePieChart from "./components/charts/ConfidencePieChart";
 
 
@@ -65,16 +68,192 @@ function LogoText({ small, size }) {
   );
 }
 
+
+// Programmatically built SVG showing interconnected nodes feeding into a cracked shield.
+function VulnerabilityGlyph() {
+  const circuits = [
+    "30,40 120,40 150,20",
+    "30,80 160,80",
+    "30,120 120,120 150,140",
+  ];
+  const nodes = [
+    { cx: 30, cy: 40 },
+    { cx: 30, cy: 80 },
+    { cx: 30, cy: 120 },
+    { cx: 160, cy: 80 },
+  ];
+  const sparks = [
+    { x1: 235, y1: 35, x2: 300, y2: 20 },
+    { x1: 240, y1: 125, x2: 300, y2: 150 },
+  ];
+  const cracks = [
+    "M210 55 L195 90 L215 120 L205 150",
+    "M235 70 L250 100 L240 136",
+  ];
+
+  return (
+    <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
+      <Box
+        component="svg"
+        viewBox="0 0 320 160"
+        width="100%"
+        height="160"
+        role="img"
+        aria-label="signals attacking a shield with a crack"
+        sx={{
+          maxWidth: 420,
+          borderRadius: 3,
+          boxShadow: 4,
+          background: "radial-gradient(circle at 20% 20%, #1f1f2e, #0b0b12)",
+        }}
+      >
+        <defs>
+          <linearGradient id="circuitGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f3c623" />
+            <stop offset="100%" stopColor="#ff6f3c" />
+          </linearGradient>
+          <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#2d2f55" />
+            <stop offset="100%" stopColor="#131326" />
+          </linearGradient>
+          <radialGradient id="coreGlow" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="#ffef9f" stopOpacity="0.9" />
+            <stop offset="100%" stopColor="transparent" />
+          </radialGradient>
+        </defs>
+
+        <rect width="320" height="160" fill="transparent" rx="16" />
+        <circle cx="140" cy="80" r="50" fill="url(#coreGlow)" opacity="0.4" />
+
+        {circuits.map((points, idx) => (
+          <polyline
+            key={`circuit-${idx}`}
+            points={points}
+            fill="none"
+            stroke="url(#circuitGradient)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity={0.8}
+          />
+        ))}
+
+        {nodes.map(({ cx, cy }, idx) => (
+          <circle
+            key={`node-${idx}`}
+            cx={cx}
+            cy={cy}
+            r="6"
+            fill="#111"
+            stroke="#f3c623"
+            strokeWidth="2"
+          />
+        ))}
+
+        <path
+          d="M200 35 L260 60 V110 C260 128 230 150 230 150 C230 150 200 128 200 110 Z"
+          fill="url(#shieldGradient)"
+          stroke="#4f4f7d"
+          strokeWidth="2"
+        />
+
+        {cracks.map((d, idx) => (
+          <path
+            key={`crack-${idx}`}
+            d={d}
+            fill="none"
+            stroke="#f96464"
+            strokeDasharray="6 4"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+        ))}
+
+        {sparks.map(({ x1, y1, x2, y2 }, idx) => (
+          <line
+            key={`spark-${idx}`}
+            x1={x1}
+            y1={y1}
+            x2={x2}
+            y2={y2}
+            stroke="#ffcc80"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.8"
+          />
+        ))}
+
+        <text
+          x="60"
+          y="150"
+          fill="#f3f3ff"
+          fontSize="12"
+          letterSpacing="2"
+          opacity="0.5"
+        >
+          VULNERABILITY DETECTED
+        </text>
+      </Box>
+    </Box>
+  );
+}
+
 // ===== About Page =====
 function About() {
   return (
-    <Container sx={{ mt: 4 }}>
+    <Container sx={{ mt: 4, mb: 4 }}>
       <Typography variant="h2" component="h1" gutterBottom>
         About Us
       </Typography>
-      <Typography variant="h5" component="h2" gutterBottom>
-        This project detects vulnerabilities in C/C++ code using AI-based static analysis.
-      </Typography>
+      <Card
+        sx={{
+          background: "linear-gradient(135deg, rgba(30,30,40,0.95), rgba(8,8,16,0.98))",
+          color: "#f5f5ff",
+          boxShadow: 6,
+        }}
+      >
+        <CardContent>
+          <Typography variant="h5" component="h2" gutterBottom>
+            This project detects vulnerabilities in C/C++ code using AI-based static analysis.
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 2, color: "rgba(255,255,255,0.82)" }}>
+            VulnLocator is developed by a team of cybersecurity and machine learning enthusiasts at
+            Swinburne University. Our mission is to provide developers with an easy-to-use tool to
+            identify potential vulnerabilities in their code, helping to enhance software security
+            and reliability.
+          </Typography>
+          <Typography variant="body1" sx={{ mt: 2, color: "rgba(255,255,255,0.82)" }}>
+            Our team consists of 3 students from Swinburne University: Gianni Edwards Hernandez,
+            Daehyeon Kim, and Hung Nguyen Phan.
+          </Typography>
+          <Box sx={{ mt: 2, color: "rgba(255,255,255,0.75)" }}>
+            <Typography variant="body1" sx={{ mt: 1 }}>
+              For more information, visit our{" "}
+              <a
+                href="https://github.com/104838522/2025-HS2-COS30049-CTIP-Session12-Group8"
+                style={{ color: "#ffd36a" }}
+              >
+                GitHub repository
+              </a>
+              .
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1 }}>
+              If you have any questions, feedback, or would like to contribute to the project,
+              please feel free to contact us.
+            </Typography>
+            <Typography variant="body1" sx={{ mt: 1 }}>
+              Thank you for using VulnLocator!
+            </Typography>
+          </Box>
+        </CardContent>
+        <Divider sx={{ borderColor: "rgba(255,255,255,0.15)" }} />
+        <Box sx={{ px: 3, pb: 3, pt: 1 }}>
+          <Typography variant="caption" sx={{ letterSpacing: 1, color: "rgba(255,255,255,0.7)" }}>
+            Signals converging on a cracked shield — a reminder to secure the weakest link.
+          </Typography>
+          <VulnerabilityGlyph />
+        </Box>
+      </Card>
     </Container>
   );
 }
@@ -94,13 +273,6 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
-
-  // const formatConfidence = (value) => {
-  //   if (typeof value === "number" && !Number.isNaN(value)) {
-  //     return `${(value * 100).toFixed(1)}%`;
-  //   }
-  //   return "N/A";
-  // };
 
   // ===== Drawer Toggle =====
   const toggleDrawer = (open) => (event) => {
@@ -369,103 +541,103 @@ function App() {
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
 
                   {/* ===== Analysis Result Area =====*/}
-                {analysisResult ? (
-                  <Box
-                    sx={{
-                      mt: 3,
-                      display: "flex",
-                      flexDirection: "row",
-                      gap: 3,
-                      alignItems: "flex-start",
-                    }}
-                  >
-                    {/* ===== Left: Line-by-line result ===== */}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography
-                        variant="h6"
-                        sx={{
-                          color:
-                            analysisResult.result === "Vulnerable"
-                              ? "error.main"
-                              : "success.main",
-                          fontWeight: 700,
-                          mb: 1,
-                        }}
-                      >
-                        {analysisResult.result === "Vulnerable"
-                          ? "Vulnerable: Potentially vulnerable code detected!"
-                          : "Safe: No vulnerability detected!"}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mb: 1 }}>{/* ===== hereeeeeeeeeeeeeeeeeeeeeeeeeee ===== */}
-                      </Typography>
-                      <Typography variant="body2" sx={{ mb: 2 }}>
-                        Processing time: {analysisResult.time}s
-                      </Typography>
-
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          Potentially vulnerable lines:
+                  {analysisResult ? (
+                    <Box
+                      sx={{
+                        mt: 3,
+                        display: "flex",
+                        flexDirection: "row",
+                        gap: 3,
+                        alignItems: "flex-start",
+                      }}
+                    >
+                      {/* ===== Left: Line-by-line result ===== */}
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color:
+                              analysisResult.result === "Vulnerable"
+                                ? "error.main"
+                                : "success.main",
+                            fontWeight: 700,
+                            mb: 1,
+                          }}
+                        >
+                          {analysisResult.result === "Vulnerable"
+                            ? "Vulnerable: Potentially vulnerable code detected!"
+                            : "Safe: No vulnerability detected!"}
                         </Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                        *Score = the change in the model’s vulnerability probability when that line is removed (Δ probability).
-                      </Typography>
-                        {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
-                          <Box
-                            component="ul"
-                            sx={{
-                              listStyle: "none",
-                              pl: 0,
-                              mt: 1,
-                              fontFamily: "monospace",
-                              fontSize: "0.9rem",
-                              maxHeight: "400px",
-                              overflowY: "auto",
-                            }}
-                          >
-                            {analysisResult.highlights.map((h, i) => (
-                              <li
-                                key={i}
-                                style={{
-                                  backgroundColor:
-                                    h.score > 0.1
-                                      ? "rgba(255, 0, 0, 0.1)"
-                                      : "rgba(255, 255, 0, 0.1)",
-                                  marginBottom: "6px",
-                                  padding: "6px",
-                                  borderRadius: "4px",
-                                }}
-                              >
-                                <strong>Line {h.line}</strong> — score {h.score.toFixed(3)}
-                                <br />
-                                <code>{h.snippet}</code>
-                              </li>
-                            ))}
-                          </Box>
-                        ) : (
-                          <Typography variant="body2" sx={{ mt: 1 }}>
-                            The model flagged the snippet overall but couldn’t isolate specific
-                            lines with enough confidence.
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
+                        <Typography variant="body2" sx={{ mb: 1 }}>{/* ===== hereeeeeeeeeeeeeeeeeeeeeeeeeee ===== */}
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2 }}>
+                          Processing time: {analysisResult.time}s
+                        </Typography>
 
-                    {/* ===== Right: Chart Component ===== */}
-                    {/* ==Chart 1== */}
-                    <Box sx={{ flex: 1, minHeight: 350 }}>
-                      <ScoreBarChart data={analysisResult.highlights} />
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            Potentially vulnerable lines:
+                          </Typography>
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            *Score = the change in the model’s vulnerability probability when that line is removed (Δ probability).
+                          </Typography>
+                          {analysisResult.highlights && analysisResult.highlights.length > 0 ? (
+                            <Box
+                              component="ul"
+                              sx={{
+                                listStyle: "none",
+                                pl: 0,
+                                mt: 1,
+                                fontFamily: "monospace",
+                                fontSize: "0.9rem",
+                                maxHeight: "400px",
+                                overflowY: "auto",
+                              }}
+                            >
+                              {analysisResult.highlights.map((h, i) => (
+                                <li
+                                  key={i}
+                                  style={{
+                                    backgroundColor:
+                                      h.score > 0.1
+                                        ? "rgba(255, 0, 0, 0.1)"
+                                        : "rgba(255, 255, 0, 0.1)",
+                                    marginBottom: "6px",
+                                    padding: "6px",
+                                    borderRadius: "4px",
+                                  }}
+                                >
+                                  <strong>Line {h.line}</strong> — score {h.score.toFixed(3)}
+                                  <br />
+                                  <code>{h.snippet}</code>
+                                </li>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Typography variant="body2" sx={{ mt: 1 }}>
+                              The model flagged the snippet overall but couldn’t isolate specific
+                              lines with enough confidence.
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* ===== Right: Chart Component ===== */}
+                      {/* ==Chart 1== */}
+                      <Box sx={{ flex: 1, minHeight: 350 }}>
+                        <ScoreBarChart data={analysisResult.highlights} />
+                      </Box>
+                      {/* ==Chart 2== */}
+                      <Box sx={{ flex: 1, minHeight: 350 }}>
+                        <ConfidencePieChart confidence={analysisResult.confidence} result={analysisResult.result} />
+                      </Box>
+                      {/* ==Chart 3== */}
                     </Box>
-                    {/* ==Chart 2== */}
-                    <Box sx={{ flex: 1, minHeight: 350 }}>
-                      <ConfidencePieChart confidence={analysisResult.confidence} result={analysisResult.result}/>
-                    </Box>
-                    {/* ==Chart 3== */}
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    Submit a code snippet or upload a file to see analysis results here.
-                  </Typography>
-                )}
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      Submit a code snippet or upload a file to see analysis results here.
+                    </Typography>
+                  )}
                 </Box>
 
                 {/* ===== Input Area ===== */}
