@@ -13,7 +13,7 @@ export default function KnowledgePage() {
     <Container>
       {/* Page Title */}
       <Typography variant="h3" component="h1" gutterBottom>
-        Interactive Dataset Visualisations
+        Dataset Visualisations
       </Typography>
 
       {/* Welcome Message Section */}

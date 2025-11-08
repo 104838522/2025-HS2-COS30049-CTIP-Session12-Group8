@@ -4,11 +4,12 @@
 import React, { useState, useRef } from "react";
 import { Route, Routes, Link, useLocation } from "react-router-dom";
 import {
-  AAppBar, Toolbar, Typography, Container, Card, CardContent, Button, Box,
+  AppBar, Toolbar, Typography, Container, Card, CardContent, Button, Box,
   Drawer, List, ListItem, ListItemIcon, ListItemText, IconButton,
   TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent,
   DialogContentText, DialogActions, CircularProgress, LinearProgress,
-  Divider, InputAdornment, Select, MenuItem, FormControl, InputLabel
+  Divider, InputAdornment, Select, MenuItem, FormControl, InputLabel,
+  Tooltip, Popover
 } from "@mui/material";
 import {
   Menu as MenuIcon,
@@ -18,7 +19,8 @@ import {
   AccountCircle as AccountCircleIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Storage as StorageIcon
+  Storage as StorageIcon,
+  HelpOutline as HelpOutlineIcon
 } from "@mui/icons-material";
 import HistoryPage from "./pages/HistoryPage";
 import KnowledgePage from "./pages/KnowledgePage";
@@ -273,6 +275,7 @@ function App() {
   const [analysisResult, setAnalysisResult] = useState(null);
   const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState(null);
+  const [helpAnchorEl, setHelpAnchorEl] = useState(null);
 
   // ===== Drawer Toggle =====
   const toggleDrawer = (open) => (event) => {
@@ -284,6 +287,15 @@ function App() {
     setDarkMode(!darkMode);
     setDarkSnackbarOpen(true);
   };
+
+  const handleHelpClick = (event) => {
+    setHelpAnchorEl((prev) => (prev ? null : event.currentTarget));
+  };
+
+  const handleHelpClose = () => setHelpAnchorEl(null);
+
+  const helpPopoverOpen = Boolean(helpAnchorEl);
+  const helpPopoverId = helpPopoverOpen ? "analysis-help-popover" : undefined;
 
   // ===== Simple C/C++ detector =====
   function isLikelyCOrCpp(code) {
@@ -489,7 +501,7 @@ function App() {
           <IconButton edge="start" color="inherit" onClick={toggleDrawer(true)}>
             <MenuIcon />
           </IconButton>
-          <Box sx={{ flex: 1, display: "flex", justifyContent: "center" }}>
+          <Box sx={{ flex: 1, display: "flex-grow", justifyContent: "center" }}>
             <LogoText size="large" />
           </Box>
         </Toolbar>
@@ -534,8 +546,30 @@ function App() {
                   p: 2,
                   display: "flex",
                   flexDirection: "column",
+                  position: "relative",
                 }}
               >
+                <Tooltip title="How to use VulnLocator">
+                  <IconButton
+                    size="small"
+                    aria-label="How to use VulnLocator"
+                    aria-describedby={helpPopoverId}
+                    onClick={handleHelpClick}
+                    sx={{
+                      position: "absolute",
+                      top: 8,
+                      right: 8,
+                      bgcolor: darkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.04)",
+                      color: darkMode ? "#fff" : "#1f1f1f",
+                      "&:hover": {
+                        bgcolor: darkMode ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)",
+                      },
+                    }}
+                  >
+                    <HelpOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+
                 {loading && <LinearProgress color="secondary" sx={{ mb: 1 }} />}
 
                 <Box sx={{ flex: 1, overflowY: "auto", px: 1 }}>
@@ -753,6 +787,67 @@ function App() {
                   </Button>
                 </Box>
               </Box>
+
+              <Popover
+                id={helpPopoverId}
+                open={helpPopoverOpen}
+                anchorEl={helpAnchorEl}
+                onClose={handleHelpClose}
+                anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+                transformOrigin={{ vertical: "top", horizontal: "right" }}
+                PaperProps={{
+                  sx: {
+                    maxWidth: 420,
+                    p: 2.25,
+                    bgcolor: darkMode ? "grey.900" : "background.paper",
+                    color: darkMode ? "grey.100" : "text.primary",
+                    borderRadius: 2,
+                    boxShadow: 8,
+                    border: darkMode
+                      ? "1px solid rgba(255,255,255,0.12)"
+                      : "1px solid rgba(0,0,0,0.08)",
+                  },
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  How to use VulnLocator
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  The KNN and Random Forest models behind this page were trained on labeled C/C++ functions,
+                  so sticking to compact systems-style snippets keeps inputs close to the dataset distribution
+                  and yields the most reliable scores.
+                </Typography>
+                <Box component="ol" sx={{ pl: 2.75, mb: 1.25 }}>
+                  <Typography component="li" variant="body2" sx={{ mb: 0.85 }}>
+                    <strong>Pick a model:</strong> KNN mirrors the baseline dataset and reports the highest
+                    class probability, while Random Forest outputs a 0–1 risk score and benefits from longer
+                    context windows.
+                  </Typography>
+                  <Typography component="li" variant="body2" sx={{ mb: 0.85 }}>
+                    <strong>Prepare code:</strong> Paste C/C++ code or upload a file (≤200 KB). Focus on one
+                    function or logical block so the explainer can mask lines and measure the Δ probability
+                    accurately.
+                  </Typography>
+                  <Typography component="li" variant="body2" sx={{ mb: 0.85 }}>
+                    <strong>Submit & preprocess:</strong> Hit Send (uploads auto-submit). The backend normalises
+                    tokens, strips comments, and vectorises text before inference, so formatting differences will
+                    not affect the score.
+                  </Typography>
+                  <Typography component="li" variant="body2">
+                    <strong>Interpret the panels:</strong> The headline label reflects the model verdict, the pie
+                    shows confidence/risk, and the bar chart lists the score drop when an indicated line is removed.
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Line-level highlights only appear when the snippet is flagged Vulnerable with ≥35% confidence;
+                  otherwise the model cannot isolate trustworthy regions. Signed-in runs are saved automatically to
+                  the History page for later review.
+                </Typography>
+                <Typography variant="caption" color="orange">
+                  Treat these predictions as triage guidance—rerun with tighter snippets, compare both models for
+                  high-risk files, and always validate manually before relying on the verdict.
+                </Typography>
+              </Popover>
             </Container>
           }
         />
@@ -824,7 +919,7 @@ function App() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button>Submit</Button>
+          <Button onClick={() => setDialogOpen(false)}>Submit</Button>
         </DialogActions>
       </Dialog>
     </Box >

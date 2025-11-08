@@ -26,6 +26,7 @@ This branch combines the FastAPI backend and the React frontend in a single work
    npm install
    ```
 
+3. **Run the ML models
 ## Run everything together
 
 From the repository root (with your virtual env active):
