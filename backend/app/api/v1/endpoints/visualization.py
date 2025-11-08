@@ -7,21 +7,11 @@ import os
 
 router = APIRouter()
 
-# ---------- Helper: Compute Token Frequency ----------
-def compute_token_frequency(df):
-    """Count how many SAFE (0) and VULNERABLE (1) samples contain each token (weight > 0)."""
-    token_start_col = df.columns.get_loc("break")  # first token column
-    token_cols = df.columns[token_start_col:]
-
-    result = []
-    for token in token_cols:
-        safe_count = df[(df["label_encoded"] == 0) & (df[token] > 0)].shape[0]
-        vuln_count = df[(df["label_encoded"] == 1) & (df[token] > 0)].shape[0]
-        result.append(
-            {"token": token, "safe": int(safe_count), "vulnerable": int(vuln_count)}
-        )
-
-    return sorted(result, key=lambda x: x["vulnerable"], reverse=True)
+# ---------- Helper: Compute Vulnerability Type Frequency ----------
+def compute_vulntype_frequency(df):
+    """Process top 15 common vulnerability type in the dataset."""
+    vuln_type_col = df["vulnerability_type"].value_counts().head(15)
+    return [{"vuln_type": vuln, "count": int(count)} for vuln, count in vuln_type_col.items()]
 
 
 # ---------- Helper: Compute Language Distribution ----------
@@ -42,7 +32,7 @@ def compute_language_distribution(df):
 # ---------- Helper: Prepare Visualization Payload ----------
 def prepare_visualization_payload(df):
     return {
-        "token_frequency": compute_token_frequency(df),
+        "vuln_type_frequency": compute_vulntype_frequency(df),
         "language_distribution": compute_language_distribution(df),
     }
 
