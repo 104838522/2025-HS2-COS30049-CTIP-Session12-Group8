@@ -131,7 +131,7 @@ vulnlocator/
    ```bash
    cd /path/to/repo/backend/ml_models
    python model_knn_save.py
-   python model_knn_save.py
+   python model_rf_save.py
    cd /path/to/repo/backend
    python -m venv .venv
    source .venv/bin/activate
