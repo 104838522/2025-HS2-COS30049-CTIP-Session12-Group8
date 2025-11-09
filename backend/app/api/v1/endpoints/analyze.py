@@ -1,7 +1,6 @@
 # Endpoint - Analyze (AI Prediction)
 from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, Depends
-import time, traceback
-import hashlib
+import time, traceback, hashlib, warnings
 import numpy as np
 import pandas as pd
 from app.utils.preprocess import preprocess_code
@@ -11,8 +10,7 @@ from app.models.schemas import AnalyzeOut
 
 router = APIRouter()
 
-
-# ---------- Helper function for analyze: predict probability/score (works for KNN or RF) ----------
+# ---------- Helper function for analyze: predict probability/score ----------
 def predict_score_from_text(text: str, model_name: str = "knn"):
     """
     Return a single score for the given code text.
@@ -36,18 +34,15 @@ def predict_score_from_text(text: str, model_name: str = "knn"):
             scaler = KNN_SCALER
             model = KNN
 
-        # apply scaler if available (handle dataframe-compatible scaler)
+        # apply scaler safely (handle feature names)
         try:
-            if scaler is not None and hasattr(scaler, "feature_names_in_"):
-                cols = getattr(
-                    VECTORIZER,
-                    "get_feature_names_out",
-                    lambda: [f"F{i}" for i in range(X_dense.shape[1])],
-                )()
-                df = pd.DataFrame(X_dense, columns=cols)
-                Xs = scaler.transform(df)
-            elif scaler is not None:
-                Xs = scaler.transform(X_dense)
+            if scaler is not None:
+                feature_names = getattr(scaler, "feature_names_in_", None)
+                if feature_names is not None and len(feature_names) == X_dense.shape[1]:
+                    X_df = pd.DataFrame(X_dense, columns=feature_names)
+                    Xs = scaler.transform(X_df)
+                else:
+                    Xs = scaler.transform(X_dense)
             else:
                 Xs = X_dense
         except Exception:
@@ -59,7 +54,7 @@ def predict_score_from_text(text: str, model_name: str = "knn"):
                 return None
             score = float(model.predict(Xs)[0])
             return score
-        else:  # knn default
+        else:
             if model is None:
                 return None
             if hasattr(model, "predict_proba"):
@@ -73,7 +68,7 @@ def predict_score_from_text(text: str, model_name: str = "knn"):
         return None
 
 
-# ---------- Helper: naive function splitter ----------
+# ---------- Helper: simple function splitter ----------
 def simple_function_split(lines):
     blocks = []
     n = len(lines)
@@ -120,10 +115,9 @@ def locate_vulnerable_regions(
 ):
     """
     Identify lines that reduce the model score when removed.
-    - model_name: "knn" or "rf"
+        - model_name: "knn" or "rf"
     - base_score: if provided, reuse instead of recalculating
-    Returns list of dicts: {line, score, snippet}
-    """
+    Returns list of dicts: {line, score, snippet}"""
     lines = raw_code.splitlines()
     if len(lines) == 0:
         return []
@@ -182,7 +176,7 @@ def locate_vulnerable_regions(
     return out
 
 
-# ---------- Endpoint: Updated analyze endpoint ----------
+# ---------- Endpoint ----------
 @router.post("/analyze", response_model=AnalyzeOut)
 async def analyze(
     request: Request,
@@ -194,6 +188,7 @@ async def analyze(
     start_time = time.time()
     if not code and not file:
         raise HTTPException(status_code=400, detail="No input provided (code or file).")
+
     try:
         raw_code = (
             (await file.read()).decode("utf-8", errors="ignore") if file else code
@@ -201,18 +196,29 @@ async def analyze(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"File read failed: {str(e)}")
 
-    # Generate a deterministic hash of the submitted content for history/reference
+    # deterministic hash for history
     content_hash = hashlib.md5(raw_code.encode("utf-8", errors="ignore")).hexdigest()
 
     try:
+        warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
+
         processed = preprocess_code(raw_code)
         X_vec = VECTORIZER.transform([processed])
         X_dense = X_vec.toarray() if hasattr(X_vec, "toarray") else np.asarray(X_vec)
         scaler = RF_SCALER if model == "rf" else KNN_SCALER
-        try:
-            X_scaled = scaler.transform(X_dense) if scaler is not None else X_dense
-        except Exception:
+
+        # Apply scaler safely (handle feature names)
+        if scaler is not None:
+            feature_names = getattr(scaler, "feature_names_in_", None)
+            if feature_names is not None and len(feature_names) == X_dense.shape[1]:
+                X_df = pd.DataFrame(X_dense, columns=feature_names)
+                X_scaled = scaler.transform(X_df)
+            else:
+                X_scaled = scaler.transform(X_dense)
+        else:
             X_scaled = X_dense
+        # ================================================
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vectorization failed: {str(e)}")
 
