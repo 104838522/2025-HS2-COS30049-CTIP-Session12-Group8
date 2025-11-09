@@ -17,5 +17,6 @@ frontend/yarn-debug.log*
 frontend/yarn-error.log*
 frontend/.DS_Store
 
+backend/ml_models/*.joblib
 # macOS junk
 .DS_Store

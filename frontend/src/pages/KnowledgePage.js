@@ -17,7 +17,7 @@ export default function KnowledgePage() {
     <Container sx={{ mt: 4 }}>
       {/* Page Title */}
       <Typography variant="h3" component="h1" gutterBottom>
-        Knowledge Page
+        Knowledge Base
       </Typography>
 
       {/* Welcome Message Section */}

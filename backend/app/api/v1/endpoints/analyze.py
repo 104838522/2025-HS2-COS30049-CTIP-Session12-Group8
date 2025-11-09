@@ -10,6 +10,7 @@ from app.models.schemas import AnalyzeOut
 
 router = APIRouter()
 
+
 # ---------- Helper function for analyze: predict probability/score ----------
 def predict_score_from_text(text: str, model_name: str = "knn"):
     """
