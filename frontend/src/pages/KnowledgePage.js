@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Container, Typography, Box, Card, CardContent, Accordion,
+import {
+  Container, Typography, Box, Card, CardContent, Accordion,
   AccordionSummary,
   AccordionDetails,
-  Link } from '@mui/material';
+  Link
+} from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import LangDistributionChart from '../components/charts/LangDistributionChart';
 import VulnerabilityTypeChart from '../components/charts/VulnerabilityFrequencyChart';
@@ -12,7 +14,7 @@ export default function KnowledgePage() {
   const { user } = useAuth(); // Access authenticated user details
 
   return (
-    <Container>
+    <Container sx={{ mt: 4 }}>
       {/* Page Title */}
       <Typography variant="h3" component="h1" gutterBottom>
         Knowledge Page
@@ -55,26 +57,26 @@ export default function KnowledgePage() {
               </Typography>
 
               <Typography variant="body1">
-                As illustrated in the visualizations above, the dataset encompasses a variety of programming languages, 
+                As illustrated in the visualizations above, the dataset encompasses a variety of programming languages,
                 with a significant focus on C and C++. Therefore, our team recommends you to use our product to scan for
                 vulnerabilities in these languages, and get to know some of the most common vulnerability types found in them.
               </Typography>
 
               <Typography variant="h6" sx={{ mt: 3 }}>
-                🔍 Some of the common types of C/C++ vulnerabilities include:
+                Some of the common types of C/C++ vulnerabilities include:
               </Typography>
 
               <VulnerabilityKnowledge />
 
               <Typography variant="body1">
-                These vulnerability types are not only common in academic datasets but also 
-                frequently reported in real-world software and security advisories. 
-                Understanding them helps developers and researchers identify patterns in unsafe code 
+                These vulnerability types are not only common in academic datasets but also
+                frequently reported in real-world software and security advisories.
+                Understanding them helps developers and researchers identify patterns in unsafe code
                 and design better detection models.
               </Typography>
 
               <Typography variant="h6" sx={{ mt: 3 }}>
-                📚 Recommended Reading and Resources
+                Recommended Reading and Resources
               </Typography>
 
               <ul>
@@ -91,7 +93,7 @@ export default function KnowledgePage() {
                 <li>
                   <a href="https://owasp.org/www-project-top-ten/" target="_blank" rel="noopener noreferrer">
                     OWASP Top 10
-                  </a> — The most critical web application security risks, 
+                  </a> — The most critical web application security risks,
                   many of which relate to unsafe memory and input handling.
                 </li>
                 <li>
@@ -107,8 +109,8 @@ export default function KnowledgePage() {
               </ul>
 
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                By exploring the visualizations and external resources, 
-                you can better understand how vulnerabilities arise in low-level languages 
+                By exploring the visualizations and external resources,
+                you can better understand how vulnerabilities arise in low-level languages
                 and what defensive programming practices can mitigate them.
               </Typography>
             </CardContent>
@@ -145,14 +147,16 @@ const Visualization = () => {
   return (
     <div>
       {/* Page Subtitle */}
-      <h1 style={{ textAlign: "center" }}>KnowledgePage Dashboard</h1>
+      <h1 style={{ textAlign: "center" }}>Dataset & Vulnerability Visualisations</h1>
 
       {/* Pie Chart: Language Distribution */}
-      <h2>Language Distribution</h2>
-      <LangDistributionChart data={chartData.language_distribution} />
+      <h2 style={{ textAlign: "center" }}>Language Distribution</h2>
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <LangDistributionChart data={chartData.language_distribution} />
+      </div>
 
       {/* Horizontal Bar Chart: Vulnerability Types */}
-      <h2>Vulnerability Types</h2>
+      <h2 style={{ textAlign: "center" }}>Vulnerability Types</h2>
       <VulnerabilityTypeChart data={chartData.vuln_type_frequency} />
     </div>
   );
